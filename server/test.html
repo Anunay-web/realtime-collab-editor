@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+  <body>
+    <h2>Real-Time Editor</h2>
+
+    <input id="username" placeholder="Your name" />
+    <input id="room" placeholder="Room ID" />
+    <button onclick="joinRoom()">Join Room</button>
+
+    <br /><br />
+
+    <textarea
+      id="editor"
+      rows="12"
+      cols="60"
+      placeholder="Start typing..."
+      style="padding:10px;"
+    ></textarea>
+
+    <p id="typing" style="color: gray;"></p>
+
+    <h3>Users in Room:</h3>
+    <ul id="users"></ul>
+
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+
+    <script>
+      const socket = io("http://localhost:5000");
+
+      let roomId = "";
+      let username = "";
+      let isRemoteUpdate = false;
+
+      function joinRoom() {
+        roomId = document.getElementById("room").value;
+        username = document.getElementById("username").value;
+
+        socket.emit("join_room", {
+          roomId,
+          username,
+        });
+      }
+
+      const editor = document.getElementById("editor");
+
+      // SEND TEXT + TYPING
+      editor.addEventListener("input", () => {
+        if (isRemoteUpdate) return;
+
+        socket.emit("send_text", {
+          roomId,
+          text: editor.value,
+        });
+
+        socket.emit("typing", {
+          roomId,
+          username,
+        });
+      });
+
+      // send cursor position
+      editor.addEventListener("keyup", () => {
+        socket.emit("cursor_move", {
+          roomId,
+          cursorPos: editor.selectionStart,
+          userId: username,
+        });
+      });
+
+      // receive text
+      socket.on("receive_text", (text) => {
+        isRemoteUpdate = true;
+
+        const start = editor.selectionStart;
+        const end = editor.selectionEnd;
+
+        editor.value = text;
+
+        editor.setSelectionRange(start, end);
+
+        isRemoteUpdate = false;
+      });
+
+      // receive cursor
+      socket.on("receive_cursor", (data) => {
+        console.log(`${data.userId} cursor at: ${data.cursorPos}`);
+      });
+
+      // users list
+      const usersList = document.getElementById("users");
+
+      socket.on("users_update", (users) => {
+        usersList.innerHTML = "";
+
+        users.forEach((user) => {
+          const li = document.createElement("li");
+          li.textContent = user.name;
+          usersList.appendChild(li);
+        });
+      });
+
+      // TYPING INDICATOR
+      const typingEl = document.getElementById("typing");
+
+      socket.on("user_typing", (name) => {
+        typingEl.textContent = `${name} is typing...`;
+
+        setTimeout(() => {
+          typingEl.textContent = "";
+        }, 1000);
+      });
+    </script>
+  </body>
+</html>
