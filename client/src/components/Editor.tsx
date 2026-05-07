@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { socket } from "../socket";
-
+import MonacoEditor from "@monaco-editor/react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 
@@ -149,13 +149,29 @@ export default function Editor() {
                 Markdown Editor
               </h2>
 
-              <textarea
-                rows={20}
-                value={text}
-                onChange={handleChange}
-                placeholder="Write markdown here..."
-                className="w-full border rounded-xl p-4 outline-none resize-none font-mono"
-              />
+              <MonacoEditor
+  height="500px"
+  defaultLanguage="markdown"
+  theme="vs-dark"
+  value={text}
+  onChange={(value) => {
+    const newValue = value || "";
+
+    if (isRemoteUpdate.current) return;
+
+    setText(newValue);
+
+    socket.emit("send_text", {
+      roomId,
+      text: newValue,
+    });
+
+    socket.emit("typing", {
+      roomId,
+      username,
+    });
+  }}
+/>
             </div>
 
             {/* Preview */}
