@@ -3,9 +3,12 @@ import http from 'http';
 import { Server } from 'socket.io';
 import { setupSocket } from './socket/socket';
 import cors from 'cors';
-
+import dotenv from "dotenv";
+import { connectDB } from "./config/db";
 const app = express();
 app.use(cors());
+dotenv.config();
+connectDB();
 
 const server = http.createServer(app);
 
