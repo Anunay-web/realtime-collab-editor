@@ -16,8 +16,6 @@ export default function Editor() {
   const [users, setUsers] = useState<User[]>([]);
   const [typing, setTyping] = useState("");
   const [connected, setConnected] = useState(false);
-
-  // professional fix
   const isRemoteUpdate = useRef(false);
 
   const joinRoom = () => {
@@ -28,7 +26,6 @@ export default function Editor() {
   };
 
   useEffect(() => {
-    // connection status
     socket.on("connect", () => {
       setConnected(true);
     });
@@ -91,7 +88,6 @@ export default function Editor() {
     <div className="min-h-screen bg-gray-100 p-6">
       <div className="max-w-7xl mx-auto bg-white shadow-xl rounded-2xl p-6">
 
-        {/* Header */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold">
             Real-Time Collaborative Editor
@@ -111,7 +107,6 @@ export default function Editor() {
           </p>
         </div>
 
-        {/* Join Controls */}
         <div className="flex gap-4 mb-6">
           <input
             type="text"
@@ -136,14 +131,10 @@ export default function Editor() {
             Join
           </button>
         </div>
-
-        {/* Main Layout */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
 
-          {/* Editor + Preview */}
           <div className="md:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-4">
 
-            {/* Editor */}
             <div>
               <h2 className="font-semibold mb-2">
                 Markdown Editor
@@ -173,8 +164,6 @@ export default function Editor() {
   }}
 />
             </div>
-
-            {/* Preview */}
             <div>
               <h2 className="font-semibold mb-2">
                 Live Preview
@@ -187,8 +176,6 @@ export default function Editor() {
               </div>
             </div>
           </div>
-
-          {/* Sidebar */}
           <div className="border rounded-xl p-4 bg-gray-50 h-fit">
 
             <h2 className="font-semibold mb-4">
