@@ -5,11 +5,17 @@ import { setupSocket } from './socket/socket';
 import cors from 'cors';
 import dotenv from "dotenv";
 import { connectDB } from "./config/db";
+import authRoutes from "./routes/auth";
 const app = express();
 app.use(cors());
+
+
 dotenv.config();
 connectDB();
 
+// express.json() will come always before the routes, otherwise req.body will be undefined in the controllers
+app.use(express.json());
+app.use("/api/auth", authRoutes);
 const server = http.createServer(app);
 
 const io = new Server(server, {
@@ -17,6 +23,7 @@ const io = new Server(server, {
     origin: "*",
   }
 });
+
 
 app.get("/", (req, res) => {
   res.send("Backend is running...");
