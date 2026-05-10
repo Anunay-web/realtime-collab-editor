@@ -1,10 +1,11 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-
+import { useAuth } from "../context/AuthContext";
 import { saveToken } from "../utils/auth";
 
 export default function Login() {
   const navigate = useNavigate();
+  const { login } = useAuth();
 
   const [formData, setFormData] = useState({
     email: "",
@@ -27,7 +28,7 @@ export default function Login() {
     const data = await response.json();
 
     if (response.ok) {
-      saveToken(data.token);
+      login(data.token);
 
       navigate("/");
     } else {
