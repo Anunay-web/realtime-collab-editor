@@ -9,6 +9,14 @@ import remarkGfm from "remark-gfm";
 import { useAuth } from "../context/AuthContext";
 
 import { v4 as uuidv4 } from "uuid";
+import * as monaco from "monaco-editor";
+
+type Cursor = {
+  userId: string;
+  username: string;
+  position: number;
+  color: string;
+};
 
 type User = {
   id: string;
@@ -19,21 +27,51 @@ export default function Editor() {
   const { logout } = useAuth();
 
   const [roomId, setRoomId] = useState("");
-  const [username, setUsername] = useState("");
+  const [username, setUsername] =
+    useState("");
 
   const [text, setText] = useState("");
 
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<
+    User[]
+  >([]);
 
-  const [typing, setTyping] = useState("");
+  const [typing, setTyping] =
+    useState("");
 
   const [connected, setConnected] =
     useState(false);
 
-  const isRemoteUpdate = useRef(false);
+  const [cursors, setCursors] =
+    useState<Cursor[]>([]);
+
+  const isRemoteUpdate =
+    useRef(false);
+
+  const getRandomColor = () => {
+    const colors = [
+      "#FF5733",
+      "#33C1FF",
+      "#8D33FF",
+      "#33FF57",
+      "#FF33A8",
+    ];
+
+    return colors[
+      Math.floor(
+        Math.random() * colors.length
+      )
+    ];
+  };
+  const editorRef =
+  useRef<monaco.editor.IStandaloneCodeEditor | null>(
+    null
+  );
+
   const joinRoom = () => {
     if (!roomId || !username) {
       alert("Enter username and room ID");
+
       return;
     }
 
@@ -42,9 +80,11 @@ export default function Editor() {
       username,
     });
   };
+
   const createRoom = () => {
     if (!username) {
       alert("Enter username first");
+
       return;
     }
 
@@ -57,7 +97,6 @@ export default function Editor() {
       username,
     });
 
-    // update URL
     window.history.pushState(
       {},
       "",
@@ -67,7 +106,10 @@ export default function Editor() {
 
   const copyRoomLink = async () => {
     if (!roomId) {
-      alert("Create or join a room first");
+      alert(
+        "Create or join a room first"
+      );
+
       return;
     }
 
@@ -80,10 +122,14 @@ export default function Editor() {
 
     alert("Room link copied!");
   };
+
   useEffect(() => {
-    const params = new URLSearchParams(
-      window.location.search
-    );
+
+    // auto read room from URL
+    const params =
+      new URLSearchParams(
+        window.location.search
+      );
 
     const roomFromUrl =
       params.get("room");
@@ -126,7 +172,9 @@ export default function Editor() {
     socket.on(
       "user_typing",
       (name: string) => {
-        setTyping(`${name} is typing...`);
+        setTyping(
+          `${name} is typing...`
+        );
 
         setTimeout(() => {
           setTyping("");
@@ -134,8 +182,60 @@ export default function Editor() {
       }
     );
 
+    // receive cursors
+    socket.on(
+      "receive_cursor",
+      (data: Cursor) => {
+        setCursors((prev) => {
+          if (!editorRef.current) return;
+
+const editor = editorRef.current;
+
+editor.deltaDecorations(
+  [],
+  [
+    {
+      range: new monaco.Range(
+        1,
+        data.position,
+        1,
+        data.position + 1
+      ),
+
+      options: {
+        className: "remote-cursor",
+
+        hoverMessage: {
+          value: data.username,
+        },
+
+        stickiness:
+          monaco.editor
+            .TrackedRangeStickiness
+            .NeverGrowsWhenTypingAtEdges,
+      },
+    },
+  ]
+);
+
+          const filtered =
+            prev.filter(
+              (cursor) =>
+                cursor.userId !==
+                data.userId
+            );
+
+          return [
+            ...filtered,
+            data,
+          ];
+        });
+      }
+    );
+
     return () => {
       socket.off("connect");
+
       socket.off("disconnect");
 
       socket.off("receive_text");
@@ -143,14 +243,18 @@ export default function Editor() {
       socket.off("users_update");
 
       socket.off("user_typing");
+
+      socket.off("receive_cursor");
     };
   }, []);
+
   const handleEditorChange = (
     value: string | undefined
   ) => {
     const newValue = value || "";
 
-    if (isRemoteUpdate.current) return;
+    if (isRemoteUpdate.current)
+      return;
 
     setText(newValue);
 
@@ -169,6 +273,7 @@ export default function Editor() {
     <div className="min-h-screen bg-gray-100 p-6">
 
       <div className="max-w-7xl mx-auto bg-white shadow-xl rounded-2xl p-6">
+
         <div className="flex items-center justify-between mb-6">
 
           <h1 className="text-3xl font-bold">
@@ -208,7 +313,9 @@ export default function Editor() {
             placeholder="Enter name"
             value={username}
             onChange={(e) =>
-              setUsername(e.target.value)
+              setUsername(
+                e.target.value
+              )
             }
             className="border p-3 rounded-lg flex-1"
           />
@@ -218,7 +325,9 @@ export default function Editor() {
             placeholder="Enter room ID"
             value={roomId}
             onChange={(e) =>
-              setRoomId(e.target.value)
+              setRoomId(
+                e.target.value
+              )
             }
             className="border p-3 rounded-lg flex-1"
           />
@@ -244,10 +353,8 @@ export default function Editor() {
             Copy Invite Link
           </button>
         </div>
-
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="md:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-4">
-
             <div>
 
               <h2 className="font-semibold mb-2">
@@ -262,6 +369,33 @@ export default function Editor() {
                 onChange={
                   handleEditorChange
                 }
+
+                onMount={(editor) => {
+                  editorRef.current = editor;
+
+                  editor.onDidChangeCursorPosition(
+                    (e) => {
+
+                      socket.emit(
+                        "cursor_move",
+                        {
+                          roomId,
+                          userId:
+                            socket.id,
+
+                          username,
+
+                          position:
+                            e.position
+                              .column,
+
+                          color:
+                            getRandomColor(),
+                        }
+                      );
+                    }
+                  );
+                }}
               />
             </div>
             <div>
@@ -284,7 +418,6 @@ export default function Editor() {
               </div>
             </div>
           </div>
-
           <div className="border rounded-xl p-4 bg-gray-50 h-fit">
 
             <h2 className="font-semibold mb-4">
@@ -302,10 +435,51 @@ export default function Editor() {
                 </div>
               ))}
             </div>
-
             <p className="text-sm text-gray-500 mt-6 h-5">
               {typing}
             </p>
+            <div className="mt-6">
+
+              <h3 className="font-semibold mb-3">
+                Live Cursors
+              </h3>
+
+              <div className="space-y-2">
+
+                {cursors.map(
+                  (cursor) => (
+                    <div
+                      key={
+                        cursor.userId
+                      }
+                      className="flex items-center gap-2 text-sm"
+                    >
+
+                      <div
+                        className="w-3 h-3 rounded-full"
+                        style={{
+                          backgroundColor:
+                            cursor.color,
+                        }}
+                      />
+
+                      <span>
+                        {
+                          cursor.username
+                        }
+                      </span>
+
+                      <span className="text-gray-500">
+                        at column{" "}
+                        {
+                          cursor.position
+                        }
+                      </span>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
           </div>
         </div>
       </div>

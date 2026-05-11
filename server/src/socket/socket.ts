@@ -80,18 +80,11 @@ export const setupSocket = (io: Server) => {
       }
     );
     //CURSOR MOVEMENT
-    socket.on(
-      "cursor_move",
-      (data: {
-        roomId: string;
-        cursorPos: number;
-        userId: string;
-      }) => {
-        socket
-          .to(data.roomId)
-          .emit("receive_cursor", data);
-      }
-    );
+    socket.on("cursor_move", (data) => {
+  socket
+    .to(data.roomId)
+    .emit("receive_cursor", data);
+});
     //TYPING
     socket.on(
       "typing",
