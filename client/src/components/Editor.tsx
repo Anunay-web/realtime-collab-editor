@@ -11,6 +11,7 @@ import { useAuth } from "../context/AuthContext";
 import { v4 as uuidv4 } from "uuid";
 
 import * as monaco from "monaco-editor";
+import { useTheme } from "../context/ThemeContext";
 
 
 type Cursor = {
@@ -31,6 +32,8 @@ type User = {
 export default function Editor() {
 
   const { logout } = useAuth();
+  const { theme, toggleTheme } =
+  useTheme();
 
   const [roomId, setRoomId] =
     useState("");
@@ -319,9 +322,9 @@ export default function Editor() {
   
 
   return (
-    <div className="min-h-screen bg-gray-100 p-6">
+    <div className="min-h-screen bg-gray-100 dark:bg-black text-black dark:text-white p-6 transition-colors duration-300">
 
-      <div className="max-w-7xl mx-auto bg-white shadow-xl rounded-2xl p-6">
+      <div className="max-w-7xl mx-auto bg-white dark:bg-gray-900 shadow-xl rounded-2xl p-6 transition-colors duration-300">
         
 
         <div className="flex items-center justify-between mb-6">
@@ -331,7 +334,13 @@ export default function Editor() {
           </h1>
 
           <div className="flex items-center gap-4">
-
+            <button
+            onClick={toggleTheme}
+            className="bg-gray-800 dark:bg-gray-200 dark:text-black text-white px-4 py-2 rounded-lg transition">
+              {theme === "dark"
+              ? "☀️ Light"
+              : "🌙 Dark"}
+              </button>
             <p className="text-sm font-medium">
 
               Status:
@@ -382,7 +391,7 @@ export default function Editor() {
                 e.target.value
               )
             }
-            className="border p-3 rounded-lg flex-1"
+            className="border dark:border-gray-700 bg-white dark:bg-gray-800 p-3 rounded-lg flex-1 text-black dark:text-white"
           />
 
           <button
@@ -422,7 +431,11 @@ export default function Editor() {
               <MonacoEditor
                 height="500px"
                 defaultLanguage="markdown"
-                theme="vs-dark"
+                theme={
+                  theme === "dark"
+                  ? "vs-dark"
+                  : "light"
+                }
                 value={text}
 
                 onChange={
@@ -473,7 +486,7 @@ export default function Editor() {
                 Live Preview
               </h2>
 
-              <div className="border rounded-xl p-4 bg-gray-50 h-full overflow-auto prose max-w-none">
+              <div className="border dark:border-gray-700 rounded-xl p-4 bg-gray-50 dark:bg-gray-800 h-full overflow-auto prose dark:prose-invert max-w-none transition-colors duration-300">
 
                 <ReactMarkdown
                   remarkPlugins={[
@@ -488,7 +501,7 @@ export default function Editor() {
             </div>
           </div>
 
-          <div className="border rounded-xl p-4 bg-gray-50 h-fit">
+          <div className="border dark:border-gray-700 rounded-xl p-4 bg-gray-50 dark:bg-gray-800 h-fit transition-colors duration-300">
 
             <h2 className="font-semibold mb-4">
               Users in Room
