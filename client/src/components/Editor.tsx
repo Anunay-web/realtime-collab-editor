@@ -9,12 +9,17 @@ import remarkGfm from "remark-gfm";
 import { useAuth } from "../context/AuthContext";
 
 import { v4 as uuidv4 } from "uuid";
+
 import * as monaco from "monaco-editor";
+
 
 type Cursor = {
   userId: string;
   username: string;
-  position: number;
+
+  lineNumber: number;
+  column: number;
+
   color: string;
 };
 
@@ -24,17 +29,20 @@ type User = {
 };
 
 export default function Editor() {
+
   const { logout } = useAuth();
 
-  const [roomId, setRoomId] = useState("");
+  const [roomId, setRoomId] =
+    useState("");
+
   const [username, setUsername] =
     useState("");
 
-  const [text, setText] = useState("");
+  const [text, setText] =
+    useState("");
 
-  const [users, setUsers] = useState<
-    User[]
-  >([]);
+  const [users, setUsers] =
+    useState<User[]>([]);
 
   const [typing, setTyping] =
     useState("");
@@ -47,6 +55,12 @@ export default function Editor() {
 
   const isRemoteUpdate =
     useRef(false);
+
+  const editorRef =
+    useRef<monaco.editor.IStandaloneCodeEditor | null>(
+      null
+    );
+    
 
   const getRandomColor = () => {
     const colors = [
@@ -63,14 +77,14 @@ export default function Editor() {
       )
     ];
   };
-  const editorRef =
-  useRef<monaco.editor.IStandaloneCodeEditor | null>(
-    null
-  );
+  
 
   const joinRoom = () => {
+
     if (!roomId || !username) {
-      alert("Enter username and room ID");
+      alert(
+        "Enter username and room ID"
+      );
 
       return;
     }
@@ -80,8 +94,9 @@ export default function Editor() {
       username,
     });
   };
-
+  
   const createRoom = () => {
+
     if (!username) {
       alert("Enter username first");
 
@@ -104,7 +119,10 @@ export default function Editor() {
     );
   };
 
+  
+
   const copyRoomLink = async () => {
+
     if (!roomId) {
       alert(
         "Create or join a room first"
@@ -122,10 +140,12 @@ export default function Editor() {
 
     alert("Room link copied!");
   };
+  
 
   useEffect(() => {
 
     // auto read room from URL
+
     const params =
       new URLSearchParams(
         window.location.search
@@ -138,29 +158,36 @@ export default function Editor() {
       setRoomId(roomFromUrl);
     }
 
-    // socket connected
+    // connected
+
     socket.on("connect", () => {
       setConnected(true);
     });
 
-    // socket disconnected
+    // disconnected
+
     socket.on("disconnect", () => {
       setConnected(false);
     });
 
     // receive text
+
     socket.on(
       "receive_text",
       (newText: string) => {
-        isRemoteUpdate.current = true;
+
+        isRemoteUpdate.current =
+          true;
 
         setText(newText);
 
-        isRemoteUpdate.current = false;
+        isRemoteUpdate.current =
+          false;
       }
     );
 
     // users update
+
     socket.on(
       "users_update",
       (usersData: User[]) => {
@@ -168,10 +195,12 @@ export default function Editor() {
       }
     );
 
-    // typing indicator
+    // typing
+
     socket.on(
       "user_typing",
       (name: string) => {
+
         setTyping(
           `${name} is typing...`
         );
@@ -181,42 +210,14 @@ export default function Editor() {
         }, 1000);
       }
     );
+    
 
-    // receive cursors
     socket.on(
       "receive_cursor",
       (data: Cursor) => {
+        
+
         setCursors((prev) => {
-          if (!editorRef.current) return;
-
-const editor = editorRef.current;
-
-editor.deltaDecorations(
-  [],
-  [
-    {
-      range: new monaco.Range(
-        1,
-        data.position,
-        1,
-        data.position + 1
-      ),
-
-      options: {
-        className: "remote-cursor",
-
-        hoverMessage: {
-          value: data.username,
-        },
-
-        stickiness:
-          monaco.editor
-            .TrackedRangeStickiness
-            .NeverGrowsWhenTypingAtEdges,
-      },
-    },
-  ]
-);
 
           const filtered =
             prev.filter(
@@ -230,10 +231,49 @@ editor.deltaDecorations(
             data,
           ];
         });
+        
+
+        if (!editorRef.current)
+          return;
+
+        const editor =
+          editorRef.current;
+
+        editor.deltaDecorations(
+          [],
+          [
+            {
+              range:
+                new monaco.Range(
+                  data.lineNumber,
+                  data.column,
+
+                  data.lineNumber,
+                  data.column + 1
+                ),
+
+              options: {
+                className:
+                  "remote-cursor",
+
+                hoverMessage: {
+                  value:
+                    data.username,
+                },
+
+                stickiness:
+                  monaco.editor
+                    .TrackedRangeStickiness
+                    .NeverGrowsWhenTypingAtEdges,
+              },
+            },
+          ]
+        );
       }
     );
 
     return () => {
+
       socket.off("connect");
 
       socket.off("disconnect");
@@ -246,14 +286,21 @@ editor.deltaDecorations(
 
       socket.off("receive_cursor");
     };
+
   }, []);
+
+  
 
   const handleEditorChange = (
     value: string | undefined
   ) => {
-    const newValue = value || "";
 
-    if (isRemoteUpdate.current)
+    const newValue =
+      value || "";
+
+    if (
+      isRemoteUpdate.current
+    )
       return;
 
     setText(newValue);
@@ -269,10 +316,13 @@ editor.deltaDecorations(
     });
   };
 
+  
+
   return (
     <div className="min-h-screen bg-gray-100 p-6">
 
       <div className="max-w-7xl mx-auto bg-white shadow-xl rounded-2xl p-6">
+        
 
         <div className="flex items-center justify-between mb-6">
 
@@ -283,6 +333,7 @@ editor.deltaDecorations(
           <div className="flex items-center gap-4">
 
             <p className="text-sm font-medium">
+
               Status:
 
               <span
@@ -306,6 +357,8 @@ editor.deltaDecorations(
             </button>
           </div>
         </div>
+        
+
         <div className="flex flex-wrap gap-4 mb-6">
 
           <input
@@ -353,8 +406,13 @@ editor.deltaDecorations(
             Copy Invite Link
           </button>
         </div>
+        
+
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          
+
           <div className="md:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-4">
+
             <div>
 
               <h2 className="font-semibold mb-2">
@@ -366,12 +424,17 @@ editor.deltaDecorations(
                 defaultLanguage="markdown"
                 theme="vs-dark"
                 value={text}
+
                 onChange={
                   handleEditorChange
                 }
 
-                onMount={(editor) => {
-                  editorRef.current = editor;
+                onMount={(
+                  editor
+                ) => {
+
+                  editorRef.current =
+                    editor;
 
                   editor.onDidChangeCursorPosition(
                     (e) => {
@@ -380,12 +443,17 @@ editor.deltaDecorations(
                         "cursor_move",
                         {
                           roomId,
+
                           userId:
                             socket.id,
 
                           username,
 
-                          position:
+                          lineNumber:
+                            e.position
+                              .lineNumber,
+
+                          column:
                             e.position
                               .column,
 
@@ -398,6 +466,7 @@ editor.deltaDecorations(
                 }}
               />
             </div>
+
             <div>
 
               <h2 className="font-semibold mb-2">
@@ -418,6 +487,7 @@ editor.deltaDecorations(
               </div>
             </div>
           </div>
+
           <div className="border rounded-xl p-4 bg-gray-50 h-fit">
 
             <h2 className="font-semibold mb-4">
@@ -435,9 +505,12 @@ editor.deltaDecorations(
                 </div>
               ))}
             </div>
+
             <p className="text-sm text-gray-500 mt-6 h-5">
               {typing}
             </p>
+
+
             <div className="mt-6">
 
               <h3 className="font-semibold mb-3">
@@ -470,9 +543,13 @@ editor.deltaDecorations(
                       </span>
 
                       <span className="text-gray-500">
-                        at column{" "}
+                        line{" "}
                         {
-                          cursor.position
+                          cursor.lineNumber
+                        }
+                        , column{" "}
+                        {
+                          cursor.column
                         }
                       </span>
                     </div>
