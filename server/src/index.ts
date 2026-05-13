@@ -6,6 +6,7 @@ import cors from 'cors';
 import dotenv from "dotenv";
 import { connectDB } from "./config/db";
 import authRoutes from "./routes/auth";
+import documentRoutes from "./routes/document";
 const app = express();
 app.use(cors());
 
@@ -15,6 +16,7 @@ connectDB();
 
 // express.json() will come always before the routes, otherwise req.body will be undefined in the controllers
 app.use(express.json());
+app.use("/api/documents",documentRoutes);
 app.use("/api/auth", authRoutes);
 const server = http.createServer(app);
 

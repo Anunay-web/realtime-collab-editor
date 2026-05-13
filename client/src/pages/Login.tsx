@@ -30,7 +30,7 @@ export default function Login() {
     if (response.ok) {
       login(data.token);
 
-      navigate("/");
+      navigate("/dashboard");
     } else {
       alert(data.message);
     }
