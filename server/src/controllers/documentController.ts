@@ -88,3 +88,74 @@ export const deleteDocument =
       });
     }
   };
+
+// save document content
+
+export const saveDocument =
+async (
+req: Request,
+res: Response
+) => {
+
+try {
+
+  const {
+    roomId,
+    content,
+  } = req.body;
+
+  await Document.findOneAndUpdate(
+    { roomId },
+
+    {
+      content,
+    }
+  );
+
+  res.json({
+    message:
+      "Document saved",
+  });
+
+} catch (error) {
+
+  res.status(500).json({
+    message:
+      "Save failed",
+  });
+}
+
+};
+
+export const getDocumentByRoomId =
+  async (
+    req: Request,
+    res: Response
+  ) => {
+
+    try {
+
+      const document =
+        await Document.findOne({
+          roomId:
+            req.params.roomId,
+        });
+
+      if (!document) {
+
+        return res.status(404).json({
+          message:
+            "Document not found",
+        });
+      }
+
+      res.json(document);
+
+    } catch (error) {
+
+      res.status(500).json({
+        message:
+          "Failed to fetch document",
+      });
+    }
+  };

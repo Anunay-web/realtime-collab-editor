@@ -4,6 +4,8 @@ import {
   createDocument,
   getDocuments,
   deleteDocument,
+  saveDocument,
+  getDocumentByRoomId
 } from "../controllers/documentController";
 
 const router =
@@ -22,6 +24,16 @@ router.get(
 router.delete(
   "/:id",
   deleteDocument
+);
+
+router.post(
+  "/save",
+  saveDocument
+);
+
+router.get(
+"/room/:roomId",
+getDocumentByRoomId
 );
 
 export default router;

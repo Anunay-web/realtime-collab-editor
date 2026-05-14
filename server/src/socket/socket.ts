@@ -69,9 +69,17 @@ export const setupSocket = (io: Server) => {
 
         //save to MongoDB
         await Document.findOneAndUpdate(
-          { roomId },
-          { content: text }
-        );
+  { roomId },
+
+  {
+    content: text,
+  },
+
+  {
+    new: true,
+    upsert: true,
+  }
+);
 
         //broadcast to others
         socket

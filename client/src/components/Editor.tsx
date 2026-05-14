@@ -11,7 +11,11 @@ import { useAuth } from "../context/AuthContext";
 import { v4 as uuidv4 } from "uuid";
 
 import * as monaco from "monaco-editor";
+
 import { useTheme } from "../context/ThemeContext";
+
+
+// TYPES
 
 
 type Cursor = {
@@ -32,8 +36,13 @@ type User = {
 export default function Editor() {
 
   const { logout } = useAuth();
-  const { theme, toggleTheme } =
-  useTheme();
+
+  const {
+    theme,
+    toggleTheme,
+  } = useTheme();
+
+  // STATES
 
   const [roomId, setRoomId] =
     useState("");
@@ -56,16 +65,31 @@ export default function Editor() {
   const [cursors, setCursors] =
     useState<Cursor[]>([]);
 
+  const [saveStatus, setSaveStatus] =
+    useState("Saved");
+
+  const [lastSaved, setLastSaved] =
+    useState("");
+
+  // REFS
+
   const isRemoteUpdate =
     useRef(false);
+
+  const saveTimeout =
+    useRef<NodeJS.Timeout | null>(
+      null
+    );
 
   const editorRef =
     useRef<monaco.editor.IStandaloneCodeEditor | null>(
       null
     );
-    
+
+  // RANDOM COLORS
 
   const getRandomColor = () => {
+
     const colors = [
       "#FF5733",
       "#33C1FF",
@@ -80,11 +104,13 @@ export default function Editor() {
       )
     ];
   };
-  
+
+  // JOIN ROOM
 
   const joinRoom = () => {
 
     if (!roomId || !username) {
+
       alert(
         "Enter username and room ID"
       );
@@ -97,10 +123,13 @@ export default function Editor() {
       username,
     });
   };
-  
+
+  // CREATE ROOM
+
   const createRoom = () => {
 
     if (!username) {
+
       alert("Enter username first");
 
       return;
@@ -122,11 +151,12 @@ export default function Editor() {
     );
   };
 
-  
+  // COPY LINK
 
   const copyRoomLink = async () => {
 
     if (!roomId) {
+
       alert(
         "Create or join a room first"
       );
@@ -143,11 +173,80 @@ export default function Editor() {
 
     alert("Room link copied!");
   };
-  
+
+  // SAVE DOCUMENT
+
+  const saveDocument =
+    async (content: string) => {
+
+      try {
+
+        setSaveStatus(
+          "Saving..."
+        );
+
+        await fetch(
+          "http://localhost:5000/api/documents/save",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              roomId,
+              content,
+            }),
+          }
+        );
+
+        setSaveStatus("Saved");
+
+        setLastSaved(
+          new Date().toLocaleTimeString()
+        );
+
+      } catch (error) {
+
+        setSaveStatus(
+          "Save failed"
+        );
+      }
+    };
+
+    const fetchDocument =
+  async (room: string) => {
+
+    try {
+
+      const response =
+        await fetch(
+          `http://localhost:5000/api/documents/${room}`
+        );
+
+      const data =
+        await response.json();
+
+      if (data.content) {
+
+        setText(data.content);
+      }
+
+    } catch (error) {
+
+      console.log(
+        "Failed to load document"
+      );
+    }
+  };
+
+  // SOCKET EFFECTS
 
   useEffect(() => {
 
-    // auto read room from URL
+    // auto room from URL
 
     const params =
       new URLSearchParams(
@@ -158,8 +257,11 @@ export default function Editor() {
       params.get("room");
 
     if (roomFromUrl) {
-      setRoomId(roomFromUrl);
-    }
+
+  setRoomId(roomFromUrl);
+
+  fetchDocument(roomFromUrl);
+}
 
     // connected
 
@@ -189,7 +291,7 @@ export default function Editor() {
       }
     );
 
-    // users update
+    // users
 
     socket.on(
       "users_update",
@@ -213,12 +315,12 @@ export default function Editor() {
         }, 1000);
       }
     );
-    
+
+    // receive cursors
 
     socket.on(
       "receive_cursor",
       (data: Cursor) => {
-        
 
         setCursors((prev) => {
 
@@ -234,7 +336,8 @@ export default function Editor() {
             data,
           ];
         });
-        
+
+        // Monaco decorations
 
         if (!editorRef.current)
           return;
@@ -292,7 +395,7 @@ export default function Editor() {
 
   }, []);
 
-  
+  // HANDLE CHANGE
 
   const handleEditorChange = (
     value: string | undefined
@@ -308,6 +411,30 @@ export default function Editor() {
 
     setText(newValue);
 
+    // autosave status
+
+    setSaveStatus(
+      "Typing..."
+    );
+
+    // debounce save
+
+    if (saveTimeout.current) {
+
+      clearTimeout(
+        saveTimeout.current
+      );
+    }
+
+    saveTimeout.current =
+      setTimeout(() => {
+
+        saveDocument(newValue);
+
+      }, 1000);
+
+    // realtime sync
+
     socket.emit("send_text", {
       roomId,
       text: newValue,
@@ -319,13 +446,14 @@ export default function Editor() {
     });
   };
 
-  
+  // UI
+ 
 
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-black text-black dark:text-white p-6 transition-colors duration-300">
 
       <div className="max-w-7xl mx-auto bg-white dark:bg-gray-900 shadow-xl rounded-2xl p-6 transition-colors duration-300">
-        
+
 
         <div className="flex items-center justify-between mb-6">
 
@@ -334,13 +462,34 @@ export default function Editor() {
           </h1>
 
           <div className="flex items-center gap-4">
+
+
+            <div className="text-sm">
+
+              <p>
+                {saveStatus}
+              </p>
+
+              {lastSaved && (
+                <p className="text-gray-500">
+                  Last saved:
+                  {" "}
+                  {lastSaved}
+                </p>
+              )}
+            </div>
+
+
             <button
-            onClick={toggleTheme}
-            className="bg-gray-800 dark:bg-gray-200 dark:text-black text-white px-4 py-2 rounded-lg transition">
+              onClick={toggleTheme}
+              className="bg-gray-800 dark:bg-gray-200 dark:text-black text-white px-4 py-2 rounded-lg transition"
+            >
               {theme === "dark"
-              ? "☀️ Light"
-              : "🌙 Dark"}
-              </button>
+                ? "☀️ Light"
+                : "🌙 Dark"}
+            </button>
+
+
             <p className="text-sm font-medium">
 
               Status:
@@ -358,6 +507,7 @@ export default function Editor() {
               </span>
             </p>
 
+
             <button
               onClick={logout}
               className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
@@ -366,7 +516,7 @@ export default function Editor() {
             </button>
           </div>
         </div>
-        
+
 
         <div className="flex flex-wrap gap-4 mb-6">
 
@@ -379,7 +529,7 @@ export default function Editor() {
                 e.target.value
               )
             }
-            className="border p-3 rounded-lg flex-1"
+            className="border dark:border-gray-700 bg-white dark:bg-gray-800 p-3 rounded-lg flex-1 text-black dark:text-white"
           />
 
           <input
@@ -415,12 +565,12 @@ export default function Editor() {
             Copy Invite Link
           </button>
         </div>
-        
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
+
 
           <div className="md:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-4">
+
 
             <div>
 
@@ -430,12 +580,15 @@ export default function Editor() {
 
               <MonacoEditor
                 height="500px"
+
                 defaultLanguage="markdown"
+
                 theme={
                   theme === "dark"
-                  ? "vs-dark"
-                  : "light"
+                    ? "vs-dark"
+                    : "light"
                 }
+
                 value={text}
 
                 onChange={
@@ -501,23 +654,26 @@ export default function Editor() {
             </div>
           </div>
 
+
           <div className="border dark:border-gray-700 rounded-xl p-4 bg-gray-50 dark:bg-gray-800 h-fit transition-colors duration-300">
 
             <h2 className="font-semibold mb-4">
               Users in Room
             </h2>
 
+
             <div className="flex flex-wrap gap-2">
 
               {users.map((user) => (
                 <div
                   key={user.id}
-                  className="bg-gray-200 px-3 py-1 rounded-full text-sm"
+                  className="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full text-sm"
                 >
                   {user.name}
                 </div>
               ))}
             </div>
+
 
             <p className="text-sm text-gray-500 mt-6 h-5">
               {typing}
