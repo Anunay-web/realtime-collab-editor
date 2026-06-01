@@ -11,6 +11,7 @@ type Document = {
   _id: string;
   title: string;
   roomId: string;
+  updatedAt: string;
 };
 
 export default function Dashboard() {
@@ -88,6 +89,39 @@ export default function Dashboard() {
       fetchDocuments();
     };
 
+    const renameDocument =
+  async (
+    id: string,
+    currentTitle: string
+  ) => {
+
+    const newTitle = prompt(
+      "Enter new title",
+      currentTitle
+    );
+
+    if (!newTitle) return;
+
+    await fetch(
+      `http://localhost:5000/api/documents/${id}/title`,
+      {
+        method: "PUT",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          title: newTitle,
+        }),
+      }
+    );
+
+    fetchDocuments();
+  };
+    
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-black text-black dark:text-white p-6">
 
@@ -143,32 +177,52 @@ export default function Dashboard() {
                     {" "}
                     {doc.roomId}
                   </p>
+                  <p className="text-gray-500 text-sm">
+                    Updated:
+                    {" "}
+                    {new Date(
+                      doc.updatedAt
+                    ).toLocaleString()}
+                  </p>
                 </div>
 
                 <div className="flex gap-3">
 
-                  <button
-                    onClick={() =>
-                      navigate(
-                        `/?room=${doc.roomId}`
-                      )
-                    }
-                    className="bg-blue-500 text-white px-4 py-2 rounded-lg"
-                  >
-                    Open
-                  </button>
+  <button
+    onClick={() =>
+      navigate(
+        `/?room=${doc.roomId}`
+      )
+    }
+    className="bg-blue-500 text-white px-4 py-2 rounded-lg"
+  >
+    Open
+  </button>
 
-                  <button
-                    onClick={() =>
-                      deleteDocument(
-                        doc._id
-                      )
-                    }
-                    className="bg-red-500 text-white px-4 py-2 rounded-lg"
-                  >
-                    Delete
-                  </button>
-                </div>
+  <button
+    onClick={() =>
+      renameDocument(
+        doc._id,
+        doc.title
+      )
+    }
+    className="bg-yellow-500 text-white px-4 py-2 rounded-lg"
+  >
+    Rename
+  </button>
+
+  <button
+    onClick={() =>
+      deleteDocument(
+        doc._id
+      )
+    }
+    className="bg-red-500 text-white px-4 py-2 rounded-lg"
+  >
+    Delete
+  </button>
+
+</div>
               </div>
             )
           )}

@@ -5,7 +5,8 @@ import {
   getDocuments,
   deleteDocument,
   saveDocument,
-  getDocumentByRoomId
+  getDocumentByRoomId,
+  updateDocumentTitle
 } from "../controllers/documentController";
 
 const router =
@@ -34,6 +35,11 @@ router.post(
 router.get(
 "/room/:roomId",
 getDocumentByRoomId
+);
+
+router.put(
+  "/:id/title",
+  updateDocumentTitle
 );
 
 export default router;

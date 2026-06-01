@@ -47,7 +47,7 @@ export const getDocuments =
 
       const documents =
         await Document.find().sort({
-          createdAt: -1,
+          updatedAt: -1,
         });
 
       res.json(documents);
@@ -156,6 +156,34 @@ export const getDocumentByRoomId =
       res.status(500).json({
         message:
           "Failed to fetch document",
+      });
+    }
+  };
+
+  export const updateDocumentTitle =
+  async (
+    req: Request,
+    res: Response
+  ) => {
+
+    try {
+
+      const { title } = req.body;
+
+      const document =
+        await Document.findByIdAndUpdate(
+          req.params.id,
+          { title },
+          { new: true }
+        );
+
+      res.json(document);
+
+    } catch (error) {
+
+      res.status(500).json({
+        message:
+          "Failed to update title",
       });
     }
   };
