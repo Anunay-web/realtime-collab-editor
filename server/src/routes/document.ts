@@ -6,7 +6,8 @@ import {
   deleteDocument,
   saveDocument,
   getDocumentByRoomId,
-  updateDocumentTitle
+  updateDocumentTitle,
+  toggleFavorite
 } from "../controllers/documentController";
 
 const router =
@@ -40,6 +41,11 @@ getDocumentByRoomId
 router.put(
   "/:id/title",
   updateDocumentTitle
+);
+
+router.patch(
+  "/:id/favorite",
+  toggleFavorite
 );
 
 export default router;

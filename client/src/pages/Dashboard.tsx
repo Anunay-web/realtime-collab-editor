@@ -12,6 +12,7 @@ type Document = {
   title: string;
   roomId: string;
   updatedAt: string;
+  favorite: boolean;
 };
 
 export default function Dashboard() {
@@ -24,6 +25,9 @@ export default function Dashboard() {
 
   const [title, setTitle] =
     useState("");
+
+    const [search, setSearch] =
+  useState("");
 
   // fetch documents
 
@@ -120,8 +124,30 @@ export default function Dashboard() {
 
     fetchDocuments();
   };
-    
+  const toggleFavorite =
+  async (id: string) => {
 
+    await fetch(
+      `http://localhost:5000/api/documents/${id}/favorite`,
+      {
+        method: "PATCH",
+      }
+    );
+
+    fetchDocuments();
+  };
+    
+const filteredDocuments = documents
+  .filter((doc) =>
+    doc.title
+      .toLowerCase()
+      .includes(search.toLowerCase())
+  )
+  .sort(
+    (a, b) =>
+      Number(b.favorite) -
+      Number(a.favorite)
+  );
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-black text-black dark:text-white p-6">
 
@@ -130,7 +156,15 @@ export default function Dashboard() {
         <h1 className="text-4xl font-bold mb-8">
           Documents
         </h1>
-
+        <input
+        type="text"
+        placeholder="Search documents..."
+        value={search}
+        onChange={(e) =>
+          setSearch(e.target.value)
+        }
+        className="w-full border dark:border-gray-700 bg-white dark:bg-gray-800 p-3 rounded-lg mb-6"
+        />
 
         <div className="flex gap-4 mb-8">
 
@@ -159,7 +193,7 @@ export default function Dashboard() {
 
         <div className="space-y-4">
 
-          {documents.map(
+          {filteredDocuments.map(
             (doc) => (
               <div
                 key={doc._id}
@@ -187,43 +221,48 @@ export default function Dashboard() {
                 </div>
 
                 <div className="flex gap-3">
+                  <div className="flex gap-3">
+                    <button
+                    onClick={() =>
+                      navigate(
+                         `/?room=${doc.roomId}`
+                        )
+                      }
+                      className="bg-blue-500 text-white px-4 py-2 rounded-lg"
+                      >
+                        Open</button>
+                        <button
+                        onClick={() =>
+                          toggleFavorite(
+                            doc._id
+                          )
+                        }
+                        className="bg-yellow-500 text-white px-4 py-2 rounded-lg"
+                        >
+                          {doc.favorite ? "⭐" : "☆"}
+                          </button>
+                          <button
+                          onClick={() =>
+                            renameDocument(doc._id,doc.title)
+                          }
+                          className="bg-orange-500 text-white px-4 py-2 rounded-lg"
+                          >
+                            Rename
+                            </button>
+                            <button
+                            onClick={() =>
+                              deleteDocument(
+                                doc._id
+                              )
 
-  <button
-    onClick={() =>
-      navigate(
-        `/?room=${doc.roomId}`
-      )
-    }
-    className="bg-blue-500 text-white px-4 py-2 rounded-lg"
-  >
-    Open
-  </button>
-
-  <button
-    onClick={() =>
-      renameDocument(
-        doc._id,
-        doc.title
-      )
-    }
-    className="bg-yellow-500 text-white px-4 py-2 rounded-lg"
-  >
-    Rename
-  </button>
-
-  <button
-    onClick={() =>
-      deleteDocument(
-        doc._id
-      )
-    }
-    className="bg-red-500 text-white px-4 py-2 rounded-lg"
-  >
-    Delete
-  </button>
-
-</div>
-              </div>
+                            }
+                            className="bg-red-500 text-white px-4 py-2 rounded-lg"
+                            >
+                              Delete
+                              </button>
+                              </div>
+                              </div>
+                              </div>
             )
           )}
         </div>

@@ -187,3 +187,40 @@ export const getDocumentByRoomId =
       });
     }
   };
+
+  export const toggleFavorite =
+  async (
+    req: Request,
+    res: Response
+  ) => {
+
+    try {
+
+      const document =
+        await Document.findById(
+          req.params.id
+        );
+
+      if (!document) {
+
+        return res.status(404).json({
+          message:
+            "Document not found",
+        });
+      }
+
+      document.favorite =
+        !document.favorite;
+
+      await document.save();
+
+      res.json(document);
+
+    } catch (error) {
+
+      res.status(500).json({
+        message:
+          "Failed to update favorite",
+      });
+    }
+  };

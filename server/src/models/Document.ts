@@ -22,6 +22,10 @@ const documentSchema =
         type: String,
         required: true,
       },
+      favorite: {
+        type: Boolean,
+        default: false,
+      },
     },
     {
       timestamps: true,
