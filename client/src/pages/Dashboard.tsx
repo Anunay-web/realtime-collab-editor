@@ -16,9 +16,7 @@ type Document = {
 };
 
 export default function Dashboard() {
-
-  const navigate =
-    useNavigate();
+  const navigate = useNavigate();
 
   const [documents, setDocuments] =
     useState<Document[]>([]);
@@ -26,14 +24,13 @@ export default function Dashboard() {
   const [title, setTitle] =
     useState("");
 
-    const [search, setSearch] =
-  useState("");
+  const [search, setSearch] =
+    useState("");
 
-  // fetch documents
-
+  const [copied, setCopied] =
+    useState("");
   const fetchDocuments =
     async () => {
-
       const response =
         await fetch(
           "http://localhost:5000/api/documents"
@@ -42,18 +39,27 @@ export default function Dashboard() {
       const data =
         await response.json();
 
-      setDocuments(data);
+      setDocuments(
+        data.sort(
+          (
+            a: Document,
+            b: Document
+          ) =>
+            Number(
+              b.favorite
+            ) -
+            Number(
+              a.favorite
+            )
+        )
+      );
     };
 
   useEffect(() => {
     fetchDocuments();
   }, []);
-
- // create document
-
   const createDocument =
     async () => {
-
       const response =
         await fetch(
           "http://localhost:5000/api/documents",
@@ -66,7 +72,9 @@ export default function Dashboard() {
             },
 
             body: JSON.stringify({
-              title,
+              title:
+                title ||
+                "Untitled Document",
             }),
           }
         );
@@ -78,10 +86,15 @@ export default function Dashboard() {
         `/?room=${data.roomId}`
       );
     };
-// delete document
 
   const deleteDocument =
     async (id: string) => {
+      const confirmed =
+        window.confirm(
+          "Delete this document?"
+        );
+
+      if (!confirmed) return;
 
       await fetch(
         `http://localhost:5000/api/documents/${id}`,
@@ -93,79 +106,125 @@ export default function Dashboard() {
       fetchDocuments();
     };
 
-    const renameDocument =
-  async (
-    id: string,
-    currentTitle: string
-  ) => {
 
-    const newTitle = prompt(
-      "Enter new title",
-      currentTitle
-    );
+  const renameDocument =
+    async (
+      id: string,
+      currentTitle: string
+    ) => {
+      const newTitle =
+        prompt(
+          "Enter new title",
+          currentTitle
+        );
 
-    if (!newTitle) return;
+      if (!newTitle) return;
 
-    await fetch(
-      `http://localhost:5000/api/documents/${id}/title`,
-      {
-        method: "PUT",
+      await fetch(
+        `http://localhost:5000/api/documents/${id}/title`,
+        {
+          method: "PUT",
 
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
+          headers: {
+            "Content-Type":
+              "application/json",
+          },
 
-        body: JSON.stringify({
-          title: newTitle,
-        }),
-      }
-    );
+          body: JSON.stringify({
+            title: newTitle,
+          }),
+        }
+      );
 
-    fetchDocuments();
-  };
+      fetchDocuments();
+    };
+
   const toggleFavorite =
-  async (id: string) => {
+    async (id: string) => {
+      await fetch(
+        `http://localhost:5000/api/documents/${id}/favorite`,
+        {
+          method: "PATCH",
+        }
+      );
 
-    await fetch(
-      `http://localhost:5000/api/documents/${id}/favorite`,
-      {
-        method: "PATCH",
-      }
-    );
+      fetchDocuments();
+    };
+  const shareDocument =
+    async (
+      roomId: string
+    ) => {
+      const link =
+        `${window.location.origin}/?room=${roomId}`;
 
-    fetchDocuments();
-  };
-    
-const filteredDocuments = documents
-  .filter((doc) =>
-    doc.title
-      .toLowerCase()
-      .includes(search.toLowerCase())
-  )
-  .sort(
-    (a, b) =>
-      Number(b.favorite) -
-      Number(a.favorite)
-  );
+      await navigator.clipboard.writeText(
+        link
+      );
+
+      setCopied(
+        "Link copied!"
+      );
+
+      setTimeout(() => {
+        setCopied("");
+      }, 2000);
+    };
+  const filteredDocuments =
+    documents
+      .filter((doc) =>
+        doc.title
+          .toLowerCase()
+          .includes(
+            search.toLowerCase()
+          )
+      )
+      .sort(
+        (a, b) =>
+          Number(
+            b.favorite
+          ) -
+          Number(
+            a.favorite
+          )
+      );
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-black text-black dark:text-white p-6">
 
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-5xl mx-auto">
 
-        <h1 className="text-4xl font-bold mb-8">
-          Documents
-        </h1>
+        <div className="flex justify-between items-center mb-8">
+
+          <h1 className="text-4xl font-bold">
+            Documents
+          </h1>
+
+          <span className="text-gray-500">
+            {
+              documents.length
+            }{" "}
+            Documents
+          </span>
+
+        </div>
+
         <input
-        type="text"
-        placeholder="Search documents..."
-        value={search}
-        onChange={(e) =>
-          setSearch(e.target.value)
-        }
-        className="w-full border dark:border-gray-700 bg-white dark:bg-gray-800 p-3 rounded-lg mb-6"
+          type="text"
+          placeholder="Search documents..."
+          value={search}
+          onChange={(e) =>
+            setSearch(
+              e.target.value
+            )
+          }
+          className="w-full border dark:border-gray-700 bg-white dark:bg-gray-800 p-3 rounded-lg mb-4"
         />
 
+        {copied && (
+          <p className="text-green-500 mb-4">
+            {copied}
+          </p>
+        )}
         <div className="flex gap-4 mb-8">
 
           <input
@@ -188,9 +247,8 @@ const filteredDocuments = documents
           >
             Create
           </button>
+
         </div>
-
-
         <div className="space-y-4">
 
           {filteredDocuments.map(
@@ -207,65 +265,94 @@ const filteredDocuments = documents
                   </h2>
 
                   <p className="text-gray-500 text-sm">
-                    Room:
-                    {" "}
+                    Room:{" "}
                     {doc.roomId}
                   </p>
+
                   <p className="text-gray-500 text-sm">
-                    Updated:
-                    {" "}
+                    Updated:{" "}
                     {new Date(
                       doc.updatedAt
                     ).toLocaleString()}
                   </p>
+
                 </div>
 
-                <div className="flex gap-3">
-                  <div className="flex gap-3">
-                    <button
+                <div className="flex gap-3 flex-wrap">
+
+                  <button
                     onClick={() =>
                       navigate(
-                         `/?room=${doc.roomId}`
-                        )
-                      }
-                      className="bg-blue-500 text-white px-4 py-2 rounded-lg"
-                      >
-                        Open</button>
-                        <button
-                        onClick={() =>
-                          toggleFavorite(
-                            doc._id
-                          )
-                        }
-                        className="bg-yellow-500 text-white px-4 py-2 rounded-lg"
-                        >
-                          {doc.favorite ? "⭐" : "☆"}
-                          </button>
-                          <button
-                          onClick={() =>
-                            renameDocument(doc._id,doc.title)
-                          }
-                          className="bg-orange-500 text-white px-4 py-2 rounded-lg"
-                          >
-                            Rename
-                            </button>
-                            <button
-                            onClick={() =>
-                              deleteDocument(
-                                doc._id
-                              )
+                        `/?room=${doc.roomId}`
+                      )
+                    }
+                    className="bg-blue-500 text-white px-4 py-2 rounded-lg"
+                  >
+                    Open
+                  </button>
 
-                            }
-                            className="bg-red-500 text-white px-4 py-2 rounded-lg"
-                            >
-                              Delete
-                              </button>
-                              </div>
-                              </div>
-                              </div>
+                  <button
+                    onClick={() =>
+                      shareDocument(
+                        doc.roomId
+                      )
+                    }
+                    className="bg-green-500 text-white px-4 py-2 rounded-lg"
+                  >
+                    Share
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      toggleFavorite(
+                        doc._id
+                      )
+                    }
+                    className="bg-yellow-500 text-white px-4 py-2 rounded-lg"
+                  >
+                    {doc.favorite
+                      ? "⭐"
+                      : "☆"}
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      renameDocument(
+                        doc._id,
+                        doc.title
+                      )
+                    }
+                    className="bg-orange-500 text-white px-4 py-2 rounded-lg"
+                  >
+                    Rename
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      deleteDocument(
+                        doc._id
+                      )
+                    }
+                    className="bg-red-500 text-white px-4 py-2 rounded-lg"
+                  >
+                    Delete
+                  </button>
+
+                </div>
+
+              </div>
             )
           )}
+
+          {filteredDocuments.length ===
+            0 && (
+            <div className="text-center py-10 text-gray-500">
+              No documents found.
+            </div>
+          )}
+
         </div>
+
       </div>
     </div>
   );

@@ -12,7 +12,6 @@ import {
 
 const router =
   express.Router();
-
 router.post(
   "/",
   createDocument

@@ -223,4 +223,4 @@ export const getDocumentByRoomId =
           "Failed to update favorite",
       });
     }
-  };
+  }; 
