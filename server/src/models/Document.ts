@@ -26,6 +26,18 @@ const documentSchema =
         type: Boolean,
         default: false,
       },
+      workspaceType: {
+        type: String,
+
+        enum: [
+          "developer",
+          "medical",
+          "classroom",
+        ],
+
+        default:
+          "developer",
+      },
     },
     {
       timestamps: true,

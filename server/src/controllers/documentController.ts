@@ -14,11 +14,12 @@ export const createDocument =
 
     try {
 
-      const { title } = req.body;
+      const { title, workspaceType } = req.body;
 
       const newDocument =
         await Document.create({
           title,
+          workspaceType,
           roomId: uuidv4(),
         });
 

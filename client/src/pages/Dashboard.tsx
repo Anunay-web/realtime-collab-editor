@@ -13,6 +13,10 @@ type Document = {
   roomId: string;
   updatedAt: string;
   favorite: boolean;
+  workspaceType:
+    | "developer"
+    | "medical"
+    | "classroom";
 };
 
 export default function Dashboard() {
@@ -54,7 +58,14 @@ export default function Dashboard() {
         )
       );
     };
-
+    const [workspaceType,setWorkspaceType,] = 
+    useState<
+  "developer"
+  | "medical"
+  | "classroom"
+>(
+  "developer"
+);
   useEffect(() => {
     fetchDocuments();
   }, []);
@@ -75,6 +86,7 @@ export default function Dashboard() {
               title:
                 title ||
                 "Untitled Document",
+                workspaceType,
             }),
           }
         );
@@ -238,6 +250,27 @@ export default function Dashboard() {
             }
             className="flex-1 border dark:border-gray-700 bg-white dark:bg-gray-800 p-3 rounded-lg"
           />
+          <select
+  value={workspaceType}
+  onChange={(e) =>
+    setWorkspaceType(
+      e.target.value as
+        | "developer"
+        | "medical"
+        | "classroom"
+    )
+  }
+  className="border dark:border-gray-700 bg-white dark:bg-gray-800 p-3 rounded-lg">
+    <option value="developer">
+     Developer
+     </option>
+     <option value="medical">
+     Medical
+     </option>
+     <option value="classroom">
+     Classroom
+     </option>
+     </select>
 
           <button
             onClick={
@@ -259,25 +292,39 @@ export default function Dashboard() {
               >
 
                 <div>
-
                   <h2 className="text-xl font-semibold">
                     {doc.title}
-                  </h2>
-
-                  <p className="text-gray-500 text-sm">
-                    Room:{" "}
-                    {doc.roomId}
-                  </p>
-
-                  <p className="text-gray-500 text-sm">
-                    Updated:{" "}
-                    {new Date(
-                      doc.updatedAt
-                    ).toLocaleString()}
-                  </p>
-
-                </div>
-
+                    </h2>
+                    <div className="flex gap-2 mt-2 mb-2">
+                      {doc.workspaceType ===
+                      "developer" && (
+                      <span className="bg-blue-500 text-white px-2 py-1 rounded text-xs">
+                         Developer
+                         </span>
+                        )}
+                        {doc.workspaceType ===
+                        "medical" && (
+                        <span className="bg-green-500 text-white px-2 py-1 rounded text-xs">
+                          Medical
+                          </span>
+                        )}
+                        {doc.workspaceType ===
+                        "classroom" && (
+                        <span className="bg-purple-500 text-white px-2 py-1 rounded text-xs">
+                           Classroom
+                           </span>
+                          )}
+                          </div>
+                          <p className="text-gray-500 text-sm">
+                            Room: {doc.roomId}
+                            </p>
+                            <p className="text-gray-500 text-sm">
+                              Updated:{" "}
+                              {new Date(
+                                doc.updatedAt
+                                ).toLocaleString()}
+                                </p>
+                                </div>
                 <div className="flex gap-3 flex-wrap">
 
                   <button
