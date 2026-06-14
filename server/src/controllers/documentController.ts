@@ -4,6 +4,8 @@ import Document from "../models/Document";
 
 import { v4 as uuidv4 } from "uuid";
 
+import { getWorkspaceTemplate } from "../utils/workspaceTemplates";
+
 // create document
 
 export const createDocument =
@@ -21,6 +23,10 @@ export const createDocument =
           title,
           workspaceType,
           roomId: uuidv4(),
+          content:
+          getWorkspaceTemplate(
+            workspaceType
+          ),
         });
 
       res.status(201).json(

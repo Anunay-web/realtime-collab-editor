@@ -293,6 +293,15 @@ export default function Dashboard() {
 
                 <div>
                   <h2 className="text-xl font-semibold">
+                    {doc.workspaceType ==="developer" &&
+                    "🧑‍💻"}
+                    {doc.workspaceType ===
+                    "medical" &&
+                    "🏥"}
+                    {doc.workspaceType ===
+                    "classroom" &&
+                    "🎓"}
+                    {" "}
                     {doc.title}
                     </h2>
                     <div className="flex gap-2 mt-2 mb-2">
