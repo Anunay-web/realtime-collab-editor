@@ -35,7 +35,33 @@ type User = {
 
 export default function Editor() {
 
-  const { logout } = useAuth();
+  const { user, logout } = useAuth();
+
+  useEffect(() => {
+
+  const params =
+    new URLSearchParams(
+      window.location.search
+    );
+
+  const room =
+    params.get("room");
+
+  if (room && user) {
+
+    setRoomId(room);
+
+    socket.emit(
+      "join_room",
+      {
+        roomId: room,
+        username: user.name,
+      }
+    );
+  }
+
+}, [user]);
+
 
   const {
     theme,
@@ -117,12 +143,12 @@ export default function Editor() {
 
       return;
     }
-
     socket.emit("join_room", {
       roomId,
       username,
     });
   };
+ 
 
   // CREATE ROOM
 
