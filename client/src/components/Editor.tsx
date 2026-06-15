@@ -58,6 +58,8 @@ export default function Editor() {
   const [lastSaved, setLastSaved] = useState("");
   const [language, setLanguage] = useState("javascript");
   const [workspaceType, setWorkspaceType] = useState("developer");
+  const [versions, setVersions] =useState<any[]>([]);
+  const [showHistory, setShowHistory] =useState(false);
 
   // REFS
 
@@ -255,6 +257,40 @@ export default function Editor() {
       username: user?.name,
     });
   };
+  const fetchVersions =
+  async () => {
+
+    if (!roomId) return;
+
+    const response =
+      await fetch(
+        `http://localhost:5000/api/versions/${roomId}`
+      );
+
+    const data =
+      await response.json();
+
+    setVersions(data);
+  };
+  const restoreVersion =
+  async (
+    content: string
+  ) => {
+
+    setText(content);
+
+    await saveDocument(
+      content
+    );
+
+    socket.emit(
+      "send_text",
+      {
+        roomId,
+        text: content,
+      }
+    );
+  };
 
   // UI
 
@@ -304,6 +340,19 @@ export default function Editor() {
           >
             Copy Invite Link
           </button>
+          <button
+  onClick={() => {
+
+    fetchVersions();
+
+    setShowHistory(
+      !showHistory
+    );
+  }}
+  className="bg-purple-500 text-white px-4 py-2 rounded-lg"
+>
+  History
+</button>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -381,6 +430,52 @@ export default function Editor() {
                 </div>
               ))}
             </div>
+            {showHistory && (
+
+  <div className="mt-6">
+
+    <h3 className="font-semibold mb-3">
+      Version History
+    </h3>
+
+    <div className="space-y-3 max-h-64 overflow-y-auto">
+
+      {versions.map(
+        (version) => (
+
+          <div
+            key={version._id}
+            className="border dark:border-gray-700 rounded p-2"
+          >
+
+            <p className="text-sm">
+
+              {new Date(
+                version.createdAt
+              ).toLocaleString()}
+
+            </p>
+
+            <button
+              onClick={() =>
+                restoreVersion(
+                  version.content
+                )
+              }
+              className="mt-2 bg-blue-500 text-white px-3 py-1 rounded"
+            >
+              Restore
+            </button>
+
+          </div>
+        )
+      )}
+
+    </div>
+
+  </div>
+
+)}
 
             <p className="text-sm text-gray-500 mt-6 h-5">{typing}</p>
 
