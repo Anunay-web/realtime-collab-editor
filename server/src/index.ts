@@ -7,6 +7,8 @@ import dotenv from "dotenv";
 import { connectDB } from "./config/db";
 import authRoutes from "./routes/auth";
 import documentRoutes from "./routes/document";
+import versionRoutes
+from "./routes/versionRoutes";
 const app = express();
 app.use(cors());
 
@@ -18,6 +20,7 @@ connectDB();
 app.use(express.json());
 app.use("/api/documents",documentRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/versions",versionRoutes);
 const server = http.createServer(app);
 
 const io = new Server(server, {

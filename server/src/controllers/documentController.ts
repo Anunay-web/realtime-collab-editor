@@ -6,6 +6,8 @@ import { v4 as uuidv4 } from "uuid";
 
 import { getWorkspaceTemplate } from "../utils/workspaceTemplates";
 
+import Version from "../models/Version";
+
 // create document
 
 export const createDocument =
@@ -99,40 +101,54 @@ export const deleteDocument =
 // save document content
 
 export const saveDocument =
-async (
-req: Request,
-res: Response
-) => {
+  async (
+    req: Request,
+    res: Response
+  ) => {
 
-try {
+    try {
 
-  const {
+      const {
+        roomId,
+        content,
+      } = req.body;
+
+      await Document.findOneAndUpdate(
+        { roomId },
+        { content }
+      );
+
+      const lastVersion =
+  await Version.findOne({
     roomId,
-    content,
-  } = req.body;
-
-  await Document.findOneAndUpdate(
-    { roomId },
-
-    {
-      content,
-    }
-  );
-
-  res.json({
-    message:
-      "Document saved",
+  }).sort({
+    createdAt: -1,
   });
 
-} catch (error) {
+if (
+  !lastVersion ||
+  lastVersion.content !== content
+) {
 
-  res.status(500).json({
-    message:
-      "Save failed",
+  await Version.create({
+    roomId,
+    content,
   });
 }
 
-};
+      res.json({
+        message:
+          "Document saved",
+      });
+
+    } catch (error) {
+
+      res.status(500).json({
+        message:
+          "Save failed",
+      });
+    }
+  };
 
 export const getDocumentByRoomId =
   async (
