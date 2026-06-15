@@ -8,8 +8,6 @@ import remarkGfm from "remark-gfm";
 
 import { useAuth } from "../context/AuthContext";
 
-import { v4 as uuidv4 } from "uuid";
-
 import * as monaco from "monaco-editor";
 
 import { useTheme } from "../context/ThemeContext";
@@ -51,6 +49,8 @@ export default function Editor() {
 
     setRoomId(room);
 
+    fetchDocument(room);
+
     socket.emit(
       "join_room",
       {
@@ -73,8 +73,7 @@ export default function Editor() {
   const [roomId, setRoomId] =
     useState("");
 
-  const [username, setUsername] =
-    useState("");
+
 
   const [text, setText] =
     useState("");
@@ -130,52 +129,9 @@ export default function Editor() {
       )
     ];
   };
-
-  // JOIN ROOM
-
-  const joinRoom = () => {
-
-    if (!roomId || !username) {
-
-      alert(
-        "Enter username and room ID"
-      );
-
-      return;
-    }
-    socket.emit("join_room", {
-      roomId,
-      username,
-    });
-  };
  
 
-  // CREATE ROOM
 
-  const createRoom = () => {
-
-    if (!username) {
-
-      alert("Enter username first");
-
-      return;
-    }
-
-    const newRoomId = uuidv4();
-
-    setRoomId(newRoomId);
-
-    socket.emit("join_room", {
-      roomId: newRoomId,
-      username,
-    });
-
-    window.history.pushState(
-      {},
-      "",
-      `/?room=${newRoomId}`
-    );
-  };
 
   // COPY LINK
 
@@ -468,8 +424,8 @@ export default function Editor() {
 
     socket.emit("typing", {
       roomId,
-      username,
-    });
+      username: user?.name,
+});
   };
 
   // UI
@@ -484,7 +440,7 @@ export default function Editor() {
         <div className="flex items-center justify-between mb-6">
 
           <h1 className="text-3xl font-bold">
-            Real-Time Collaborative Editor
+            CollabSpace Workspace
           </h1>
 
           <div className="flex items-center gap-4">
@@ -545,45 +501,6 @@ export default function Editor() {
 
 
         <div className="flex flex-wrap gap-4 mb-6">
-
-          <input
-            type="text"
-            placeholder="Enter name"
-            value={username}
-            onChange={(e) =>
-              setUsername(
-                e.target.value
-              )
-            }
-            className="border dark:border-gray-700 bg-white dark:bg-gray-800 p-3 rounded-lg flex-1 text-black dark:text-white"
-          />
-
-          <input
-            type="text"
-            placeholder="Enter room ID"
-            value={roomId}
-            onChange={(e) =>
-              setRoomId(
-                e.target.value
-              )
-            }
-            className="border dark:border-gray-700 bg-white dark:bg-gray-800 p-3 rounded-lg flex-1 text-black dark:text-white"
-          />
-
-          <button
-            onClick={joinRoom}
-            className="bg-black text-white px-6 rounded-lg hover:bg-gray-800 transition"
-          >
-            Join
-          </button>
-
-          <button
-            onClick={createRoom}
-            className="bg-blue-500 text-white px-4 py-2 rounded-lg hover:bg-blue-600 transition"
-          >
-            Create Room
-          </button>
-
           <button
             onClick={copyRoomLink}
             className="bg-green-500 text-white px-4 py-2 rounded-lg hover:bg-green-600 transition"
@@ -639,7 +556,7 @@ export default function Editor() {
                           userId:
                             socket.id,
 
-                          username,
+                          username: user?.name,
 
                           lineNumber:
                             e.position
