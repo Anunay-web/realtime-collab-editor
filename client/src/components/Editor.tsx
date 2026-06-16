@@ -35,13 +35,17 @@ export default function Editor() {
     const room = params.get("room");
 
     if (room && user) {
-      setRoomId(room);
-      fetchDocument(room);
-      socket.emit("join_room", {
-        roomId: room,
-        username: user.name,
-      });
-    }
+  setRoomId(room);
+
+  fetchDocument(room);
+
+  fetchComments(room);
+
+  socket.emit("join_room", {
+    roomId: room,
+    username: user?.username,
+  });
+}
   }, [user]);
 
   const { theme, toggleTheme } = useTheme();
@@ -57,9 +61,11 @@ export default function Editor() {
   const [saveStatus, setSaveStatus] = useState("Saved");
   const [lastSaved, setLastSaved] = useState("");
   const [language, setLanguage] = useState("javascript");
-  const [workspaceType, setWorkspaceType] = useState("developer");
+  const [workspaceType, setWorkspaceType] =  useState("developer");
   const [versions, setVersions] =useState<any[]>([]);
   const [showHistory, setShowHistory] =useState(false);
+  const [comments, setComments] = useState<any[]>([]);
+  const [commentText, setCommentText] = useState("");
 
   // REFS
 
@@ -107,89 +113,63 @@ export default function Editor() {
       setSaveStatus("Saved");
       setLastSaved(new Date().toLocaleTimeString());
     } catch (error) {
-      setSaveStatus("Save failed");
-    }
-  };
-
-  const fetchDocument = async (room: string) => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/documents/${room}`);
-      const data = await response.json();
-
-      if (data.workspaceType) {
-        setWorkspaceType(data.workspaceType);
-      }
-
-      if (data.content) {
-        setText(data.content);
-      }
-    } catch (error) {
-      console.log("Failed to load document");
+      setSaveStatus("Save failed", error);
     }
   };
 
   // SOCKET EFFECTS
-
+  
   useEffect(() => {
-    // auto room from URL
-
-    const params = new URLSearchParams(window.location.search);
-    const roomFromUrl = params.get("room");
-
-    if (roomFromUrl) {
-      setRoomId(roomFromUrl);
-      fetchDocument(roomFromUrl);
-    }
-
+    
     // connected
-
+    
     socket.on("connect", () => {
       setConnected(true);
     });
-
+    
     // disconnected
-
+    
     socket.on("disconnect", () => {
       setConnected(false);
     });
-
+    
     // receive text
-
+    
     socket.on("receive_text", (newText: string) => {
       isRemoteUpdate.current = true;
       setText(newText);
       isRemoteUpdate.current = false;
     });
-
+    
     // users
-
+    
     socket.on("users_update", (usersData: User[]) => {
       setUsers(usersData);
     });
-
+    
     // typing
-
+    
     socket.on("user_typing", (name: string) => {
       setTyping(`${name} is typing...`);
       setTimeout(() => {
         setTyping("");
       }, 1000);
     });
-
+    
     // receive cursors
-
+    
     socket.on("receive_cursor", (data: Cursor) => {
       setCursors((prev) => {
         const filtered = prev.filter((cursor) => cursor.userId !== data.userId);
         return [...filtered, data];
       });
-
+      
       // Monaco decorations
-
+      
       if (!editorRef.current) return;
-
+      
       const editor = editorRef.current;
-
+      
       editor.deltaDecorations(
         [],
         [
@@ -211,7 +191,7 @@ export default function Editor() {
         ]
       );
     });
-
+    
     return () => {
       socket.off("connect");
       socket.off("disconnect");
@@ -221,68 +201,68 @@ export default function Editor() {
       socket.off("receive_cursor");
     };
   }, []);
-
+  
   // HANDLE CHANGE
-
+  
   const handleEditorChange = (value: string | undefined) => {
     const newValue = value || "";
-
+    
     if (isRemoteUpdate.current) return;
-
+    
     setText(newValue);
-
+    
     // autosave status
-
+    
     setSaveStatus("Typing...");
-
+    
     // debounce save
-
+    
     if (saveTimeout.current) {
       clearTimeout(saveTimeout.current);
     }
-
+    
     saveTimeout.current = setTimeout(() => {
       saveDocument(newValue);
     }, 1000);
-
+    
     // realtime sync
-
+    
     socket.emit("send_text", {
       roomId,
       text: newValue,
     });
-
+    
     socket.emit("typing", {
       roomId,
-      username: user?.name,
+      username: user?.username,
     });
   };
   const fetchVersions =
   async () => {
-
+    
     if (!roomId) return;
-
+    
     const response =
-      await fetch(
-        `http://localhost:5000/api/versions/${roomId}`
-      );
-
+    await fetch(
+      `http://localhost:5000/api/versions/${roomId}`
+    );
+    
     const data =
-      await response.json();
-
+    await response.json();
+    
     setVersions(data);
   };
   const restoreVersion =
   async (
     content: string
   ) => {
-
+    
     setText(content);
-
+    
     await saveDocument(
       content
     );
-
+    
     socket.emit(
       "send_text",
       {
@@ -291,9 +271,96 @@ export default function Editor() {
       }
     );
   };
+  const fetchComments =
+  async (room: string) => {
+    
+    const response =
+    await fetch(
+      `http://localhost:5000/api/comments/${room}`
+    );
+    
+    const data =
+    await response.json();
+    
+    setComments(data);
+  };
+  const fetchDocument = async (
+  room: string
+) => {
+  try {
+    const response =
+      await fetch(
+        `http://localhost:5000/api/documents/room/${room}`
+      );
 
+    if (!response.ok) {
+      console.error(
+        "Document not found:",
+        room
+      );
+      return;
+    }
+
+    const data =
+      await response.json();
+
+    if (data.workspaceType) {
+      setWorkspaceType(
+        data.workspaceType
+      );
+    }
+
+    if (data.content) {
+      setText(data.content);
+    }
+
+  } catch (error) {
+    console.error(
+      "Failed to load document",
+      error
+    );
+  }
+};
+
+  useEffect(() => {
+
+  if (!roomId) return;
+
+  fetchComments(roomId);
+
+}, [roomId]);
+
+  const addComment = async () => {
+
+  if (!commentText.trim())
+    return;
+
+  await fetch(
+    "http://localhost:5000/api/comments",
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+
+      body: JSON.stringify({
+        roomId,
+        username:
+          user?.username,
+        text: commentText,
+      }),
+    }
+  );
+
+  setCommentText("");
+
+  fetchComments(roomId);
+};
+  
   // UI
-
+  
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-black text-black dark:text-white p-6 transition-colors duration-300">
       <div className="max-w-7xl mx-auto bg-white dark:bg-gray-900 shadow-xl rounded-2xl p-6 transition-colors duration-300">
@@ -396,7 +463,7 @@ export default function Editor() {
                     socket.emit("cursor_move", {
                       roomId,
                       userId: socket.id,
-                      username: user?.name,
+                      username: user?.username,
                       lineNumber: e.position.lineNumber,
                       column: e.position.column,
                       color: getRandomColor(),
@@ -476,7 +543,55 @@ export default function Editor() {
   </div>
 
 )}
+<div className="mt-6">
 
+  <h3 className="font-semibold mb-3">
+    Comments
+  </h3>
+
+  <div className="space-y-3 max-h-60 overflow-y-auto">
+
+    {comments.map(
+      (comment) => (
+
+        <div
+          key={comment._id}
+          className="border dark:border-gray-700 rounded p-2"
+        >
+
+          <p className="font-semibold text-sm">
+            {comment.username}
+          </p>
+
+          <p className="text-sm">
+            {comment.text}
+          </p>
+
+        </div>
+      )
+    )}
+
+  </div>
+
+  <textarea
+    value={commentText}
+    onChange={(e) =>
+      setCommentText(
+        e.target.value
+      )
+    }
+    className="w-full border dark:border-gray-700 bg-white dark:bg-gray-800 p-2 rounded mt-3"
+    placeholder="Add comment..."
+  />
+
+  <button
+    onClick={addComment}
+    className="bg-blue-500 text-white px-4 py-2 rounded mt-2"
+  >
+    Comment
+  </button>
+
+</div>
             <p className="text-sm text-gray-500 mt-6 h-5">{typing}</p>
 
             <div className="mt-6">

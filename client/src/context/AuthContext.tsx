@@ -7,11 +7,15 @@ import {
 
 type User = {
   token: string;
+  username: string;
 };
 
 type AuthContextType = {
   user: User | null;
-  login: (token: string) => void;
+  login: (
+    token: string,
+    username: string
+  ) => void;
   logout: () => void;
 };
 
@@ -27,25 +31,58 @@ export const AuthProvider = ({
     useState<User | null>(null);
 
   useEffect(() => {
-    const token =
-      localStorage.getItem("token");
 
-    if (token) {
-      setUser({ token });
-    }
-  }, []);
+  const token =
+    localStorage.getItem("token");
 
-  const login = (token: string) => {
-    localStorage.setItem("token", token);
+  const username =
+    localStorage.getItem("username");
 
-    setUser({ token });
-  };
+  if (
+    token &&
+    username
+  ) {
+    setUser({
+      token,
+      username,
+    });
+  }
+
+}, []);
+
+  const login = (
+  token: string,
+  username: string
+) => {
+
+  localStorage.setItem(
+    "token",
+    token
+  );
+
+  localStorage.setItem(
+    "username",
+    username
+  );
+
+  setUser({
+    token,
+    username,
+  });
+};
 
   const logout = () => {
-    localStorage.removeItem("token");
 
-    setUser(null);
-  };
+  localStorage.removeItem(
+    "token"
+  );
+
+  localStorage.removeItem(
+    "username"
+  );
+
+  setUser(null);
+};
 
   return (
     <AuthContext.Provider

@@ -28,10 +28,14 @@ export default function Login() {
     const data = await response.json();
 
     if (response.ok) {
-      login(data.token);
 
-      navigate("/dashboard");
-    } else {
+  login(
+    data.token,
+    data.user.username
+  );
+
+  navigate("/dashboard");
+} else {
       alert(data.message);
     }
   };
