@@ -358,6 +358,38 @@ export default function Editor() {
 
   fetchComments(roomId);
 };
+
+const workspaceConfig = {
+  developer: {
+    title: "💻 Developer Workspace",
+    description:
+      "Collaborative coding environment",
+    color:
+      "border-blue-500 bg-blue-50 dark:bg-blue-950/20",
+  },
+
+  medical: {
+    title: "🏥 Medical Workspace",
+    description:
+      "Patient records & medical notes",
+    color:
+      "border-green-500 bg-green-50 dark:bg-green-950/20",
+  },
+
+  classroom: {
+    title: "🎓 Classroom Workspace",
+    description:
+      "Collaborative learning environment",
+    color:
+      "border-purple-500 bg-purple-50 dark:bg-purple-950/20",
+  },
+};
+
+const currentWorkspace =
+  workspaceConfig[
+    workspaceType as keyof typeof workspaceConfig
+  ];
+
   
   // UI
   
@@ -399,6 +431,17 @@ export default function Editor() {
             </button>
           </div>
         </div>
+        <div
+  className={`mb-6 border rounded-xl p-4 ${currentWorkspace.color}`}
+>
+  <h2 className="text-2xl font-bold">
+    {currentWorkspace.title}
+  </h2>
+
+  <p className="text-gray-600 dark:text-gray-400">
+    {currentWorkspace.description}
+  </p>
+</div>
 
         <div className="flex flex-wrap gap-4 mb-6">
           <button
@@ -502,7 +545,13 @@ export default function Editor() {
   <div className="mt-6">
 
     <h3 className="font-semibold mb-3">
-      Version History
+      {
+  workspaceType === "developer"
+    ? "Code History"
+    : workspaceType === "medical"
+    ? "Patient Record History"
+    : "Lesson History"
+}
     </h3>
 
     <div className="space-y-3 max-h-64 overflow-y-auto">
@@ -546,8 +595,12 @@ export default function Editor() {
 <div className="mt-6">
 
   <h3 className="font-semibold mb-3">
-    Comments
-  </h3>
+  {workspaceType === "developer"
+    ? "Code Review Notes"
+    : workspaceType === "medical"
+    ? "Medical Notes"
+    : "Class Discussion"}
+</h3>
 
   <div className="space-y-3 max-h-60 overflow-y-auto">
 
