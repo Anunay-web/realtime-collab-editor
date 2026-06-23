@@ -1,15 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { socket } from "../socket";
-
 import MonacoEditor from "@monaco-editor/react";
-
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-
 import { useAuth } from "../context/AuthContext";
-
 import * as monaco from "monaco-editor";
-
 import { useTheme } from "../context/ThemeContext";
 
 // TYPES
@@ -29,25 +24,6 @@ type User = {
 
 export default function Editor() {
   const { user, logout } = useAuth();
-
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const room = params.get("room");
-
-    if (room && user) {
-  setRoomId(room);
-
-  fetchDocument(room);
-
-  fetchComments(room);
-
-  socket.emit("join_room", {
-    roomId: room,
-    username: user?.username,
-  });
-}
-  }, [user]);
-
   const { theme, toggleTheme } = useTheme();
 
   // STATES
@@ -61,29 +37,49 @@ export default function Editor() {
   const [saveStatus, setSaveStatus] = useState("Saved");
   const [lastSaved, setLastSaved] = useState("");
   const [language, setLanguage] = useState("javascript");
-  const [workspaceType, setWorkspaceType] =  useState("developer");
-  const [reviewNotes, setReviewNotes] =
-  useState("");
-
-  const [patientInfo, setPatientInfo] =
-  useState({
+  const [workspaceType, setWorkspaceType] = useState("developer");
+  const [reviewNotes, setReviewNotes] = useState("");
+  const [patientInfo, setPatientInfo] = useState({
     name: "",
     age: "",
     diagnosis: "",
   });
-
-  const [assignment, setAssignment] =
-  useState("");
-  const [versions, setVersions] =useState<any[]>([]);
-  const [showHistory, setShowHistory] =useState(false);
+  const [assignment, setAssignment] = useState("");
+  const [versions, setVersions] = useState<any[]>([]);
+  const [showHistory, setShowHistory] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
   const [commentText, setCommentText] = useState("");
-  
+
   // REFS
 
   const isRemoteUpdate = useRef(false);
   const saveTimeout = useRef<NodeJS.Timeout | null>(null);
   const editorRef = useRef<monaco.editor.IStandaloneCodeEditor | null>(null);
+
+  // ROOM JOIN EFFECT
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const room = params.get("room");
+
+    if (room && user) {
+      setRoomId(room);
+      fetchDocument(room);
+      fetchComments(room);
+
+      socket.emit("join_room", {
+        roomId: room,
+        username: user?.username,
+      });
+    }
+  }, [user]);
+
+  // COMMENTS ROOM SYNC EFFECT
+
+  useEffect(() => {
+    if (!roomId) return;
+    fetchComments(roomId);
+  }, [roomId]);
 
   // RANDOM COLORS
 
@@ -130,58 +126,43 @@ export default function Editor() {
   };
 
   // SOCKET EFFECTS
-  
+
   useEffect(() => {
-    
-    // connected
-    
     socket.on("connect", () => {
       setConnected(true);
     });
-    
-    // disconnected
-    
+
     socket.on("disconnect", () => {
       setConnected(false);
     });
-    
-    // receive text
-    
+
     socket.on("receive_text", (newText: string) => {
       isRemoteUpdate.current = true;
       setText(newText);
       isRemoteUpdate.current = false;
     });
-    
-    // users
-    
+
     socket.on("users_update", (usersData: User[]) => {
       setUsers(usersData);
     });
-    
-    // typing
-    
+
     socket.on("user_typing", (name: string) => {
       setTyping(`${name} is typing...`);
       setTimeout(() => {
         setTyping("");
       }, 1000);
     });
-    
-    // receive cursors
-    
+
     socket.on("receive_cursor", (data: Cursor) => {
       setCursors((prev) => {
         const filtered = prev.filter((cursor) => cursor.userId !== data.userId);
         return [...filtered, data];
       });
-      
-      // Monaco decorations
-      
+
       if (!editorRef.current) return;
-      
+
       const editor = editorRef.current;
-      
+
       editor.deltaDecorations(
         [],
         [
@@ -203,7 +184,7 @@ export default function Editor() {
         ]
       );
     });
-    
+
     return () => {
       socket.off("connect");
       socket.off("disconnect");
@@ -213,201 +194,129 @@ export default function Editor() {
       socket.off("receive_cursor");
     };
   }, []);
-  
+
   // HANDLE CHANGE
-  
+
   const handleEditorChange = (value: string | undefined) => {
     const newValue = value || "";
-    
+
     if (isRemoteUpdate.current) return;
-    
+
     setText(newValue);
-    
-    // autosave status
-    
     setSaveStatus("Typing...");
-    
-    // debounce save
-    
+
     if (saveTimeout.current) {
       clearTimeout(saveTimeout.current);
     }
-    
+
     saveTimeout.current = setTimeout(() => {
       saveDocument(newValue);
     }, 1000);
-    
-    // realtime sync
-    
+
     socket.emit("send_text", {
       roomId,
       text: newValue,
     });
-    
+
     socket.emit("typing", {
       roomId,
       username: user?.username,
     });
   };
-  const fetchVersions =
-  async () => {
-    
+
+  const fetchVersions = async () => {
     if (!roomId) return;
-    
-    const response =
-    await fetch(
-      `http://localhost:5000/api/versions/${roomId}`
-    );
-    
-    const data =
-    await response.json();
-    
+
+    const response = await fetch(`http://localhost:5000/api/versions/${roomId}`);
+    const data = await response.json();
     setVersions(data);
   };
-  const restoreVersion =
-  async (
-    content: string
-  ) => {
-    
+
+  const restoreVersion = async (content: string) => {
     setText(content);
-    
-    await saveDocument(
-      content
-    );
-    
-    socket.emit(
-      "send_text",
-      {
-        roomId,
-        text: content,
-      }
-    );
+    await saveDocument(content);
+
+    socket.emit("send_text", {
+      roomId,
+      text: content,
+    });
   };
-  const fetchComments =
-  async (room: string) => {
-    
-    const response =
-    await fetch(
-      `http://localhost:5000/api/comments/${room}`
-    );
-    
-    const data =
-    await response.json();
-    
+
+  const fetchComments = async (room: string) => {
+    const response = await fetch(`http://localhost:5000/api/comments/${room}`);
+    const data = await response.json();
     setComments(data);
   };
-  const fetchDocument = async (
-  room: string
-) => {
-  try {
-    const response =
-      await fetch(
-        `http://localhost:5000/api/documents/room/${room}`
-      );
 
-    if (!response.ok) {
-      console.error(
-        "Document not found:",
-        room
-      );
-      return;
+  const fetchDocument = async (room: string) => {
+    try {
+      const response = await fetch(`http://localhost:5000/api/documents/room/${room}`);
+
+      if (!response.ok) {
+        console.error("Document not found:", room);
+        return;
+      }
+
+      const data = await response.json();
+
+      if (data.workspaceType) {
+        setWorkspaceType(data.workspaceType);
+      }
+
+      if (data.content) {
+        setText(data.content);
+      }
+    } catch (error) {
+      console.error("Failed to load document", error);
     }
-
-    const data =
-      await response.json();
-
-    if (data.workspaceType) {
-      setWorkspaceType(
-        data.workspaceType
-      );
-    }
-
-    if (data.content) {
-      setText(data.content);
-    }
-
-  } catch (error) {
-    console.error(
-      "Failed to load document",
-      error
-    );
-  }
-};
-
-  useEffect(() => {
-
-  if (!roomId) return;
-
-  fetchComments(roomId);
-
-}, [roomId]);
+  };
 
   const addComment = async () => {
+    if (!commentText.trim()) return;
 
-  if (!commentText.trim())
-    return;
-
-  await fetch(
-    "http://localhost:5000/api/comments",
-    {
+    await fetch("http://localhost:5000/api/comments", {
       method: "POST",
-
       headers: {
-        "Content-Type":
-          "application/json",
+        "Content-Type": "application/json",
       },
-
       body: JSON.stringify({
         roomId,
-        username:
-          user?.username,
+        username: user?.username,
         text: commentText,
       }),
-    }
-  );
+    });
 
-  setCommentText("");
+    setCommentText("");
+    fetchComments(roomId);
+  };
 
-  fetchComments(roomId);
-};
+  const workspaceConfig = {
+    developer: {
+      title: "💻 Developer Workspace",
+      description: "Collaborative coding environment",
+      color: "border-blue-500 bg-blue-50 dark:bg-blue-950/20",
+    },
+    medical: {
+      title: "🏥 Medical Workspace",
+      description: "Patient records & medical notes",
+      color: "border-green-500 bg-green-50 dark:bg-green-950/20",
+    },
+    classroom: {
+      title: "🎓 Classroom Workspace",
+      description: "Collaborative learning environment",
+      color: "border-purple-500 bg-purple-50 dark:bg-purple-950/20",
+    },
+  };
 
-const workspaceConfig = {
-  developer: {
-    title: "💻 Developer Workspace",
-    description:
-      "Collaborative coding environment",
-    color:
-      "border-blue-500 bg-blue-50 dark:bg-blue-950/20",
-  },
+  const currentWorkspace = workspaceConfig[workspaceType as keyof typeof workspaceConfig];
 
-  medical: {
-    title: "🏥 Medical Workspace",
-    description:
-      "Patient records & medical notes",
-    color:
-      "border-green-500 bg-green-50 dark:bg-green-950/20",
-  },
-
-  classroom: {
-    title: "🎓 Classroom Workspace",
-    description:
-      "Collaborative learning environment",
-    color:
-      "border-purple-500 bg-purple-50 dark:bg-purple-950/20",
-  },
-};
-
-const currentWorkspace =
-  workspaceConfig[
-    workspaceType as keyof typeof workspaceConfig
-  ];
-
-  
   // UI
-  
+
   return (
     <div className="min-h-screen bg-gray-100 dark:bg-black text-black dark:text-white p-6 transition-colors duration-300">
       <div className="max-w-7xl mx-auto bg-white dark:bg-gray-900 shadow-xl rounded-2xl p-6 transition-colors duration-300">
+        
+        {/* Header Section */}
         <div className="flex items-center justify-between mb-6">
           <h1 className="text-3xl font-bold">CollabSpace Workspace</h1>
 
@@ -416,7 +325,7 @@ const currentWorkspace =
               <p>{saveStatus}</p>
               {lastSaved && (
                 <p className="text-gray-500">
-                  Last saved:{" "}{lastSaved}
+                  Last saved: {lastSaved}
                 </p>
               )}
             </div>
@@ -443,18 +352,14 @@ const currentWorkspace =
             </button>
           </div>
         </div>
-        <div
-  className={`mb-6 border rounded-xl p-4 ${currentWorkspace.color}`}
->
-  <h2 className="text-2xl font-bold">
-    {currentWorkspace.title}
-  </h2>
 
-  <p className="text-gray-600 dark:text-gray-400">
-    {currentWorkspace.description}
-  </p>
-</div>
+        {/* Workspace Banner */}
+        <div className={`mb-6 border rounded-xl p-4 ${currentWorkspace.color}`}>
+          <h2 className="text-2xl font-bold">{currentWorkspace.title}</h2>
+          <p className="text-gray-600 dark:text-gray-400">{currentWorkspace.description}</p>
+        </div>
 
+        {/* Action Buttons */}
         <div className="flex flex-wrap gap-4 mb-6">
           <button
             onClick={copyRoomLink}
@@ -463,28 +368,21 @@ const currentWorkspace =
             Copy Invite Link
           </button>
           <button
-  onClick={() => {
-
-    fetchVersions();
-
-    setShowHistory(
-      !showHistory
-    );
-  }}
-  className="bg-purple-500 text-white px-4 py-2 rounded-lg"
->
-  History
-</button>
+            onClick={() => {
+              fetchVersions();
+              setShowHistory(!showHistory);
+            }}
+            className="bg-purple-500 text-white px-4 py-2 rounded-lg"
+          >
+            History
+          </button>
         </div>
 
+        {/* Main Workspace Split Layout */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div
-            className={
-              workspaceType === "developer"
-                ? "md:col-span-2"
-                : "md:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-4"
-            }
-          >
+          <div className={workspaceType === "developer" ? "md:col-span-2" : "md:col-span-2 grid grid-cols-1 lg:grid-cols-2 gap-4"}>
+            
+            {/* Editor Area */}
             <div>
               {workspaceType === "developer" && (
                 <div className="mb-4">
@@ -528,6 +426,7 @@ const currentWorkspace =
               />
             </div>
 
+            {/* Markdown Live Preview */}
             {workspaceType !== "developer" && (
               <div>
                 <h2 className="font-semibold mb-2">Live Preview</h2>
@@ -540,84 +439,50 @@ const currentWorkspace =
             )}
           </div>
 
+          {/* Sidebar Area */}
           <div className="border dark:border-gray-700 rounded-xl p-4 bg-gray-50 dark:bg-gray-800 h-fit transition-colors duration-300">
             <h2 className="font-semibold mb-4">Users in Room</h2>
-            {/* Workspace Tools */}
+            
+            {/* Contextual Workspace Tools Component */}
+            <div className="mb-6">
+              {workspaceType === "developer" && (
+                <div className="border border-blue-500 rounded-lg p-3 mb-4">
+                  <h3 className="font-bold mb-2">💻 Code Review</h3>
+                  <textarea
+                    value={reviewNotes}
+                    onChange={(e) => setReviewNotes(e.target.value)}
+                    placeholder="Review notes..."
+                    className="w-full p-2 rounded bg-white dark:bg-gray-800 border"
+                  />
+                  <button className="mt-2 bg-blue-500 text-white px-3 py-1 rounded">
+                    Save Review
+                  </button>
+                </div>
+              )}
 
-<div className="mb-6">
+              {workspaceType === "medical" && (
+                <div className="border border-green-500 rounded-lg p-3 mb-4">
+                  <h3 className="font-bold mb-2">🏥 Patient Information</h3>
+                  <input placeholder="Patient Name" className="w-full mb-2 p-2 rounded border" />
+                  <input placeholder="Age" className="w-full mb-2 p-2 rounded border" />
+                  <input placeholder="Diagnosis" className="w-full p-2 rounded border" />
+                </div>
+              )}
 
-  {workspaceType === "developer" && (
-    <div className="border border-blue-500 rounded-lg p-3 mb-4">
-      <h3 className="font-bold mb-2">
-        💻 Code Review
-      </h3>
+              {workspaceType === "classroom" && (
+                <div className="border border-purple-500 rounded-lg p-3 mb-4">
+                  <h3 className="font-bold mb-2">🎓 Assignment</h3>
+                  <textarea
+                    value={assignment}
+                    onChange={(e) => setAssignment(e.target.value)}
+                    placeholder="Create assignment..."
+                    className="w-full p-2 rounded border"
+                  />
+                </div>
+              )}
+            </div>
 
-      <textarea
-        value={reviewNotes}
-        onChange={(e) =>
-          setReviewNotes(
-            e.target.value
-          )
-        }
-        placeholder="Review notes..."
-        className="w-full p-2 rounded bg-white dark:bg-gray-800 border"
-      />
-
-      <button
-        className="mt-2 bg-blue-500 text-white px-3 py-1 rounded"
-      >
-        Save Review
-      </button>
-    </div>
-  )}
-
-  {workspaceType === "medical" && (
-    <div className="border border-green-500 rounded-lg p-3 mb-4">
-
-      <h3 className="font-bold mb-2">
-        🏥 Patient Information
-      </h3>
-
-      <input
-        placeholder="Patient Name"
-        className="w-full mb-2 p-2 rounded border"
-      />
-
-      <input
-        placeholder="Age"
-        className="w-full mb-2 p-2 rounded border"
-      />
-
-      <input
-        placeholder="Diagnosis"
-        className="w-full p-2 rounded border"
-      />
-
-    </div>
-  )}
-
-  {workspaceType === "classroom" && (
-    <div className="border border-purple-500 rounded-lg p-3 mb-4">
-
-      <h3 className="font-bold mb-2">
-        🎓 Assignment
-      </h3>
-
-      <textarea
-        value={assignment}
-        onChange={(e) =>
-          setAssignment(
-            e.target.value
-          )
-        }
-        placeholder="Create assignment..."
-        className="w-full p-2 rounded border"
-      />
-
-    </div>
-  )}
-
-</div>
+            {/* Connected User Tags */}
             <div className="flex flex-wrap gap-2">
               {users.map((user) => (
                 <div
@@ -628,113 +493,71 @@ const currentWorkspace =
                 </div>
               ))}
             </div>
+
+            {/* History Feed Popup panel */}
             {showHistory && (
+              <div className="mt-6">
+                <h3 className="font-semibold mb-3">
+                  {workspaceType === "developer"
+                    ? "Code History"
+                    : workspaceType === "medical"
+                    ? "Patient Record History"
+                    : "Lesson History"}
+                </h3>
+                <div className="space-y-3 max-h-64 overflow-y-auto">
+                  {versions.map((version) => (
+                    <div key={version._id} className="border dark:border-gray-700 rounded p-2">
+                      <p className="text-sm">
+                        {new Date(version.createdAt).toLocaleString()}
+                      </p>
+                      <button
+                        onClick={() => restoreVersion(version.content)}
+                        className="mt-2 bg-blue-500 text-white px-3 py-1 rounded"
+                      >
+                        Restore
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
 
-  <div className="mt-6">
+            {/* Workspace Comments Feed Context */}
+            <div className="mt-6">
+              <h3 className="font-semibold mb-3">
+                {workspaceType === "developer"
+                  ? "Code Review Notes"
+                  : workspaceType === "medical"
+                  ? "Medical Notes"
+                  : "Class Discussion"}
+              </h3>
+              <div className="space-y-3 max-h-60 overflow-y-auto">
+                {comments.map((comment) => (
+                  <div key={comment._id} className="border dark:border-gray-700 rounded p-2">
+                    <p className="font-semibold text-sm">{comment.username}</p>
+                    <p className="text-sm">{comment.text}</p>
+                  </div>
+                ))}
+              </div>
 
-    <h3 className="font-semibold mb-3">
-      {
-  workspaceType === "developer"
-    ? "Code History"
-    : workspaceType === "medical"
-    ? "Patient Record History"
-    : "Lesson History"
-}
-    </h3>
+              <textarea
+                value={commentText}
+                onChange={(e) => setCommentText(e.target.value)}
+                className="w-full border dark:border-gray-700 bg-white dark:bg-gray-800 p-2 rounded mt-3"
+                placeholder="Add comment..."
+              />
+              <button
+                onClick={addComment}
+                className="bg-blue-500 text-white px-4 py-2 rounded mt-2"
+              >
+                Comment
+              </button>
+            </div>
 
-    <div className="space-y-3 max-h-64 overflow-y-auto">
-
-      {versions.map(
-        (version) => (
-
-          <div
-            key={version._id}
-            className="border dark:border-gray-700 rounded p-2"
-          >
-
-            <p className="text-sm">
-
-              {new Date(
-                version.createdAt
-              ).toLocaleString()}
-
-            </p>
-
-            <button
-              onClick={() =>
-                restoreVersion(
-                  version.content
-                )
-              }
-              className="mt-2 bg-blue-500 text-white px-3 py-1 rounded"
-            >
-              Restore
-            </button>
-
-          </div>
-        )
-      )}
-
-    </div>
-
-  </div>
-
-)}
-<div className="mt-6">
-
-  <h3 className="font-semibold mb-3">
-  {workspaceType === "developer"
-    ? "Code Review Notes"
-    : workspaceType === "medical"
-    ? "Medical Notes"
-    : "Class Discussion"}
-</h3>
-
-  <div className="space-y-3 max-h-60 overflow-y-auto">
-
-    {comments.map(
-      (comment) => (
-
-        <div
-          key={comment._id}
-          className="border dark:border-gray-700 rounded p-2"
-        >
-
-          <p className="font-semibold text-sm">
-            {comment.username}
-          </p>
-
-          <p className="text-sm">
-            {comment.text}
-          </p>
-
-        </div>
-      )
-    )}
-
-  </div>
-
-  <textarea
-    value={commentText}
-    onChange={(e) =>
-      setCommentText(
-        e.target.value
-      )
-    }
-    className="w-full border dark:border-gray-700 bg-white dark:bg-gray-800 p-2 rounded mt-3"
-    placeholder="Add comment..."
-  />
-
-  <button
-    onClick={addComment}
-    className="bg-blue-500 text-white px-4 py-2 rounded mt-2"
-  >
-    Comment
-  </button>
-
-</div>
+            {/* Typing Indicator Status */}
             <p className="text-sm text-gray-500 mt-6 h-5">{typing}</p>
 
+            {/* Realtime Remote Cursors Tracker */}
             <div className="mt-6">
               <h3 className="font-semibold mb-3">Live Cursors</h3>
               <div className="space-y-2">
@@ -742,9 +565,7 @@ const currentWorkspace =
                   <div key={cursor.userId} className="flex items-center gap-2 text-sm">
                     <div
                       className="w-3 h-3 rounded-full"
-                      style={{
-                        backgroundColor: cursor.color,
-                      }}
+                      style={{ backgroundColor: cursor.color }}
                     />
                     <span>{cursor.username}</span>
                     <span className="text-gray-500">
@@ -754,6 +575,7 @@ const currentWorkspace =
                 ))}
               </div>
             </div>
+
           </div>
         </div>
       </div>
