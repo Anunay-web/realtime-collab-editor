@@ -62,11 +62,23 @@ export default function Editor() {
   const [lastSaved, setLastSaved] = useState("");
   const [language, setLanguage] = useState("javascript");
   const [workspaceType, setWorkspaceType] =  useState("developer");
+  const [reviewNotes, setReviewNotes] =
+  useState("");
+
+  const [patientInfo, setPatientInfo] =
+  useState({
+    name: "",
+    age: "",
+    diagnosis: "",
+  });
+
+  const [assignment, setAssignment] =
+  useState("");
   const [versions, setVersions] =useState<any[]>([]);
   const [showHistory, setShowHistory] =useState(false);
   const [comments, setComments] = useState<any[]>([]);
   const [commentText, setCommentText] = useState("");
-
+  
   // REFS
 
   const isRemoteUpdate = useRef(false);
@@ -530,6 +542,82 @@ const currentWorkspace =
 
           <div className="border dark:border-gray-700 rounded-xl p-4 bg-gray-50 dark:bg-gray-800 h-fit transition-colors duration-300">
             <h2 className="font-semibold mb-4">Users in Room</h2>
+            {/* Workspace Tools */}
+
+<div className="mb-6">
+
+  {workspaceType === "developer" && (
+    <div className="border border-blue-500 rounded-lg p-3 mb-4">
+      <h3 className="font-bold mb-2">
+        💻 Code Review
+      </h3>
+
+      <textarea
+        value={reviewNotes}
+        onChange={(e) =>
+          setReviewNotes(
+            e.target.value
+          )
+        }
+        placeholder="Review notes..."
+        className="w-full p-2 rounded bg-white dark:bg-gray-800 border"
+      />
+
+      <button
+        className="mt-2 bg-blue-500 text-white px-3 py-1 rounded"
+      >
+        Save Review
+      </button>
+    </div>
+  )}
+
+  {workspaceType === "medical" && (
+    <div className="border border-green-500 rounded-lg p-3 mb-4">
+
+      <h3 className="font-bold mb-2">
+        🏥 Patient Information
+      </h3>
+
+      <input
+        placeholder="Patient Name"
+        className="w-full mb-2 p-2 rounded border"
+      />
+
+      <input
+        placeholder="Age"
+        className="w-full mb-2 p-2 rounded border"
+      />
+
+      <input
+        placeholder="Diagnosis"
+        className="w-full p-2 rounded border"
+      />
+
+    </div>
+  )}
+
+  {workspaceType === "classroom" && (
+    <div className="border border-purple-500 rounded-lg p-3 mb-4">
+
+      <h3 className="font-bold mb-2">
+        🎓 Assignment
+      </h3>
+
+      <textarea
+        value={assignment}
+        onChange={(e) =>
+          setAssignment(
+            e.target.value
+          )
+        }
+        placeholder="Create assignment..."
+        className="w-full p-2 rounded border"
+      />
+
+    </div>
+  )}
+
+</div>
             <div className="flex flex-wrap gap-2">
               {users.map((user) => (
                 <div
