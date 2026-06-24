@@ -266,6 +266,8 @@ export default function Editor() {
       if (data.content) {
         setText(data.content);
       }
+      fetchWorkspaceData(room); 
+      
     } catch (error) {
       console.error("Failed to load document", error);
     }
@@ -307,6 +309,74 @@ export default function Editor() {
       color: "border-purple-500 bg-purple-50 dark:bg-purple-950/20",
     },
   };
+  const saveWorkspaceData =
+async () => {
+
+  await fetch(
+    "http://localhost:5000/api/workspace",
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+
+      body: JSON.stringify({
+        roomId,
+
+        reviewNotes,
+
+        patientName:
+          patientInfo.name,
+
+        patientAge:
+          patientInfo.age,
+
+        diagnosis:
+          patientInfo.diagnosis,
+
+        assignment,
+      }),
+    }
+  );
+};
+
+
+const fetchWorkspaceData =
+async (
+  room: string
+) => {
+
+  const response =
+    await fetch(
+      `http://localhost:5000/api/workspace/${room}`
+    );
+
+  const data =
+    await response.json();
+
+  if (!data) return;
+
+  setReviewNotes(
+    data.reviewNotes || ""
+  );
+
+  setPatientInfo({
+    name:
+      data.patientName || "",
+
+    age:
+      data.patientAge || "",
+
+    diagnosis:
+      data.diagnosis || "",
+  });
+
+  setAssignment(
+    data.assignment || ""
+  );
+};
 
   const currentWorkspace = workspaceConfig[workspaceType as keyof typeof workspaceConfig];
 
