@@ -17,10 +17,7 @@ type Cursor = {
   color: string;
 };
 
-type User = {
-  id: string;
-  name: string;
-};
+
 
 export default function Editor() {
   const { user, logout } = useAuth();
@@ -30,7 +27,6 @@ export default function Editor() {
 
   const [roomId, setRoomId] = useState("");
   const [text, setText] = useState("");
-  const [users, setUsers] = useState<User[]>([]);
   const [typing, setTyping] = useState("");
   const [connected, setConnected] = useState(false);
   const [cursors, setCursors] = useState<Cursor[]>([]);
@@ -49,8 +45,9 @@ export default function Editor() {
   const [showHistory, setShowHistory] = useState(false);
   const [comments, setComments] = useState<any[]>([]);
   const [commentText, setCommentText] = useState("");
-
-  // REFS
+  const [output, setOutput] = useState("");
+  const [isRunning, setIsRunning] = useState(false);  
+  const [activeUsers, setActiveUsers,] = useState< string[]>([]);
 
   const isRemoteUpdate = useRef(false);
   const saveTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -67,10 +64,16 @@ export default function Editor() {
       fetchDocument(room);
       fetchComments(room);
 
-      socket.emit("join_room", {
-        roomId: room,
-        username: user?.username,
-      });
+      socket.emit(
+  "join-room",
+  {
+    roomId: room,
+
+    username:
+      user?.username ||
+      "Anonymous",
+  }
+);
     }
   }, [user]);
 
@@ -142,9 +145,12 @@ export default function Editor() {
       isRemoteUpdate.current = false;
     });
 
-    socket.on("users_update", (usersData: User[]) => {
-      setUsers(usersData);
-    });
+    socket.on(
+  "users-update",
+  (users: string[]) => {
+    setActiveUsers(users);
+  }
+);
 
     socket.on("user_typing", (name: string) => {
       setTyping(`${name} is typing...`);
@@ -291,6 +297,41 @@ export default function Editor() {
     setCommentText("");
     fetchComments(roomId);
   };
+
+  const runCode = async () => {
+  try {
+    setIsRunning(true);
+    setOutput("Running...");
+
+    const response = await fetch(
+      "http://localhost:5000/api/compiler/run",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          language,
+          code: text,
+        }),
+      }
+    );
+
+    const data = await response.json();
+
+    setOutput(
+      data.run?.stdout ||
+      data.run?.stderr ||
+      data.output ||
+      "No output"
+    );
+  } catch (error) {
+    console.error(error);
+    setOutput("Execution failed");
+  } finally {
+    setIsRunning(false);
+  }
+};
 
   const workspaceConfig = {
     developer: {
@@ -455,20 +496,62 @@ async (
             {/* Editor Area */}
             <div>
               {workspaceType === "developer" && (
-                <div className="mb-4">
-                  <select
-                    value={language}
-                    onChange={(e) => setLanguage(e.target.value)}
-                    className="border dark:border-gray-700 bg-white dark:bg-gray-800 p-2 rounded-lg"
-                  >
-                    <option value="javascript">JavaScript</option>
-                    <option value="typescript">TypeScript</option>
-                    <option value="python">Python</option>
-                    <option value="java">Java</option>
-                    <option value="cpp">C++</option>
-                  </select>
-                </div>
-              )}
+  <div className="flex gap-3 mb-4">
+
+    <select
+      value={language}
+      onChange={(e) =>
+        setLanguage(e.target.value)
+      }
+      className="
+        border
+        dark:border-gray-700
+        bg-white
+        dark:bg-gray-800
+        p-2
+        rounded-lg
+      "
+    >
+      <option value="javascript">
+        JavaScript
+      </option>
+
+      <option value="typescript">
+        TypeScript
+      </option>
+
+      <option value="python">
+        Python
+      </option>
+
+      <option value="java">
+        Java
+      </option>
+
+      <option value="cpp">
+        C++
+      </option>
+
+    </select>
+
+    <button
+      onClick={runCode}
+      disabled={isRunning}
+      className="
+        bg-green-500
+        text-white
+        px-4
+        py-2
+        rounded-lg
+      "
+    >
+      {isRunning
+        ? "Running..."
+        : "▶ Run Code"}
+    </button>
+
+  </div>
+)}
 
               <h2 className="font-semibold mb-2">
                 {workspaceType === "developer" ? "Code Editor" : "Markdown Editor"}
@@ -494,6 +577,27 @@ async (
                   });
                 }}
               />
+              {workspaceType === "developer" && (
+  <div className="mt-4">
+    <h3 className="font-semibold mb-2">
+      Output
+    </h3>
+
+    <pre
+      className="
+        bg-black
+        text-green-400
+        p-4
+        rounded-lg
+        min-h-[120px]
+        overflow-auto
+      "
+    >
+      {output ||
+        "Run code to see output"}
+    </pre>
+  </div>
+)}
             </div>
 
             {/* Markdown Live Preview */}
@@ -524,18 +628,59 @@ async (
                     placeholder="Review notes..."
                     className="w-full p-2 rounded bg-white dark:bg-gray-800 border"
                   />
-                  <button className="mt-2 bg-blue-500 text-white px-3 py-1 rounded">
-                    Save Review
-                  </button>
+                  <button
+  onClick={saveWorkspaceData}
+  className="mt-2 bg-blue-500 text-white px-3 py-1 rounded"
+>
+  Save Review
+</button>
                 </div>
               )}
 
               {workspaceType === "medical" && (
                 <div className="border border-green-500 rounded-lg p-3 mb-4">
                   <h3 className="font-bold mb-2">🏥 Patient Information</h3>
-                  <input placeholder="Patient Name" className="w-full mb-2 p-2 rounded border" />
-                  <input placeholder="Age" className="w-full mb-2 p-2 rounded border" />
-                  <input placeholder="Diagnosis" className="w-full p-2 rounded border" />
+                  <input
+  value={patientInfo.name}
+  onChange={(e) =>
+    setPatientInfo({
+      ...patientInfo,
+      name: e.target.value,
+    })
+  }
+  placeholder="Patient Name"
+  className="w-full mb-2 p-2 rounded border"
+/>
+
+<input
+  value={patientInfo.age}
+  onChange={(e) =>
+    setPatientInfo({
+      ...patientInfo,
+      age: e.target.value,
+    })
+  }
+  placeholder="Age"
+  className="w-full mb-2 p-2 rounded border"
+/>
+
+<input
+  value={patientInfo.diagnosis}
+  onChange={(e) =>
+    setPatientInfo({
+      ...patientInfo,
+      diagnosis: e.target.value,
+    })
+  }
+  placeholder="Diagnosis"
+  className="w-full p-2 rounded border"
+/>
+<button
+  onClick={saveWorkspaceData}
+  className="mt-2 bg-green-500 text-white px-3 py-1 rounded"
+>
+  Save Patient Info
+</button>
                 </div>
               )}
 
@@ -548,20 +693,33 @@ async (
                     placeholder="Create assignment..."
                     className="w-full p-2 rounded border"
                   />
+                  <button
+  onClick={saveWorkspaceData}
+  className="mt-2 bg-purple-500 text-white px-3 py-1 rounded"
+>
+  Save Assignment
+</button>
                 </div>
               )}
             </div>
 
             {/* Connected User Tags */}
             <div className="flex flex-wrap gap-2">
-              {users.map((user) => (
-                <div
-                  key={user.id}
-                  className="bg-gray-200 dark:bg-gray-700 px-3 py-1 rounded-full text-sm"
-                >
-                  {user.name}
-                </div>
-              ))}
+              {activeUsers.map((user) => (
+  <div
+    key={user}
+    className="
+      bg-gray-200
+      dark:bg-gray-700
+      px-3
+      py-1
+      rounded-full
+      text-sm
+    "
+  >
+    {user}
+  </div>
+))}
             </div>
 
             {/* History Feed Popup panel */}
@@ -616,6 +774,49 @@ async (
                 className="w-full border dark:border-gray-700 bg-white dark:bg-gray-800 p-2 rounded mt-3"
                 placeholder="Add comment..."
               />
+              <div className="
+  border
+  rounded-lg
+  p-4
+  mb-4
+">
+
+  <h2 className="
+    font-semibold
+    mb-3
+  ">
+    Active Users
+  </h2>
+
+  <div className="
+    space-y-2
+  ">
+
+    {activeUsers.map(
+      (user) => (
+
+        <div
+          key={user}
+          className="
+            flex
+            items-center
+            gap-2
+          "
+        >
+          <span>
+            🟢
+          </span>
+
+          <span>
+            {user}
+          </span>
+        </div>
+      )
+    )}
+
+  </div>
+
+</div>
               <button
                 onClick={addComment}
                 className="bg-blue-500 text-white px-4 py-2 rounded mt-2"
