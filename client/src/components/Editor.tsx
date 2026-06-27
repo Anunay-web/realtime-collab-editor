@@ -48,6 +48,7 @@ export default function Editor() {
   const [output, setOutput] = useState("");
   const [isRunning, setIsRunning] = useState(false);  
   const [activeUsers, setActiveUsers,] = useState< string[]>([]);
+  const [activities, setActivities] = useState<any[]>([]);
 
   const isRemoteUpdate = useRef(false);
   const saveTimeout = useRef<NodeJS.Timeout | null>(null);
@@ -158,6 +159,19 @@ export default function Editor() {
         setTyping("");
       }, 1000);
     });
+    socket.on(
+  "activity-update",
+  (activity) => {
+
+    setActivities(
+      (prev) => [
+        activity,
+        ...prev,
+      ]
+    );
+
+  }
+);
 
     socket.on("receive_cursor", (data: Cursor) => {
       setCursors((prev) => {
@@ -195,9 +209,10 @@ export default function Editor() {
       socket.off("connect");
       socket.off("disconnect");
       socket.off("receive_text");
-      socket.off("users_update");
+      socket.off("users-update");
       socket.off("user_typing");
       socket.off("receive_cursor");
+      socket.off("activity-update");
     };
   }, []);
 
@@ -241,6 +256,22 @@ export default function Editor() {
   const restoreVersion = async (content: string) => {
     setText(content);
     await saveDocument(content);
+    socket.emit(
+  "activity",
+  {
+    roomId,
+
+    type:
+      "restore",
+
+    username:
+      user?.username,
+
+    time:
+      new Date()
+        .toLocaleTimeString(),
+  }
+);
 
     socket.emit("send_text", {
       roomId,
@@ -296,6 +327,22 @@ export default function Editor() {
 
     setCommentText("");
     fetchComments(roomId);
+    socket.emit(
+  "activity",
+  {
+    roomId,
+
+    type:
+      "comment",
+
+    username:
+      user?.username,
+
+    time:
+      new Date()
+        .toLocaleTimeString(),
+  }
+);
   };
 
   const runCode = async () => {
@@ -774,55 +821,71 @@ async (
                 className="w-full border dark:border-gray-700 bg-white dark:bg-gray-800 p-2 rounded mt-3"
                 placeholder="Add comment..."
               />
-              <div className="
-  border
-  rounded-lg
-  p-4
-  mb-4
-">
+              
+              <button
+  onClick={addComment}
+  className="bg-blue-500 text-white px-4 py-2 rounded mt-2"
+>
+  Comment
+</button>
 
-  <h2 className="
-    font-semibold
-    mb-3
-  ">
+{/* Active Users */}
+
+<div className="border rounded-lg p-4 mt-4">
+  <h2 className="font-semibold mb-3">
     Active Users
   </h2>
 
-  <div className="
-    space-y-2
-  ">
-
-    {activeUsers.map(
-      (user) => (
-
-        <div
-          key={user}
-          className="
-            flex
-            items-center
-            gap-2
-          "
-        >
-          <span>
-            🟢
-          </span>
-
-          <span>
-            {user}
-          </span>
-        </div>
-      )
-    )}
-
+  <div className="space-y-2">
+    {activeUsers.map((user) => (
+      <div
+        key={user}
+        className="flex items-center gap-2"
+      >
+        <span>🟢</span>
+        <span>{user}</span>
+      </div>
+    ))}
   </div>
-
 </div>
-              <button
-                onClick={addComment}
-                className="bg-blue-500 text-white px-4 py-2 rounded mt-2"
-              >
-                Comment
-              </button>
+
+{/* Activity Feed */}
+
+<div className="border rounded-lg p-4 mt-4">
+  <h2 className="font-semibold mb-3">
+    Activity Feed
+  </h2>
+
+  <div className="space-y-2 max-h-64 overflow-y-auto">
+    {activities.map((activity, index) => (
+      <div
+        key={index}
+        className="text-sm"
+      >
+        {activity.type === "join" && (
+          <>🟢 {activity.username} joined</>
+        )}
+
+        {activity.type === "leave" && (
+          <>🔴 {activity.username} left</>
+        )}
+
+        {activity.type === "comment" && (
+          <>💬 {activity.username} commented</>
+        )}
+
+        {activity.type === "restore" && (
+          <>📜 {activity.username} restored version</>
+        )}
+
+        <div className="text-xs text-gray-500">
+          {activity.time}
+        </div>
+      </div>
+    ))}
+  </div>
+</div>
+
             </div>
 
             {/* Typing Indicator Status */}

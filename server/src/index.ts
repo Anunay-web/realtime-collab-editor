@@ -9,6 +9,8 @@ import authRoutes from "./routes/auth";
 import documentRoutes from "./routes/document";
 import versionRoutes from "./routes/versionRoutes";
 import commentRoutes from "./routes/commentRoutes";
+import workspaceRoutes from "./routes/workspaceRoutes";
+import compilerRoutes from "./routes/compilerRoutes"
 const app = express();
 app.use(cors());
 
@@ -22,6 +24,8 @@ app.use("/api/documents",documentRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/versions",versionRoutes);
 app.use("/api/comments",commentRoutes);
+app.use("/api/workspace",workspaceRoutes);
+app.use("/api/compiler",compilerRoutes);
 const server = http.createServer(app);
 
 const io = new Server(server, {

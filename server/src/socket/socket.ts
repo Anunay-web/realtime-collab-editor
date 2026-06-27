@@ -1,63 +1,63 @@
 import { Server, Socket } from "socket.io";
 import Document from "../models/Document";
 
-const roomUsers: Record<
+const roomUsers = new Map<
   string,
-  { id: string; name: string }[]
-> = {};
+  Set<string>
+>();
 
 export const setupSocket = (io: Server) => {
+  
   io.on("connection", (socket: Socket) => {
     console.log("User connected:", socket.id);
     //JOIN ROOM
     socket.on(
-      "join_room",
-      async (data: { roomId: string; username: string }) => {
-        const { roomId, username } = data;
+  "join-room",
+  ({
+    roomId,
+    username,
+  }) => {
 
-        socket.join(roomId);
+    socket.join(roomId);
 
-        // find existing document
-        let document = await Document.findOne({
-          roomId,
-        });
+    if (
+      !roomUsers.has(roomId)
+    ) {
+      roomUsers.set(
+        roomId,
+        new Set()
+      );
+    }
 
-        // create document if not exists
-        if (!document) {
-          document = await Document.create({
-            roomId,
-            content: "",
-          });
-        }
+    roomUsers
+      .get(roomId)!
+      .add(username);
 
-        // send existing content
-        socket.emit(
-          "receive_text",
-          document.content
-        );
+    io.to(roomId).emit(
+  "activity-update",
+  {
+    type: "join",
+    username,
+    time:
+      new Date()
+        .toLocaleTimeString(),
+  }
+);
 
-        // initialize room users
-        if (!roomUsers[roomId]) {
-          roomUsers[roomId] = [];
-        }
+io.to(roomId).emit(
+  "users-update",
+  Array.from(
+    roomUsers.get(roomId)!
+  )
+);
 
-        // add current user
-        roomUsers[roomId].push({
-          id: socket.id,
-          name: username,
-        });
+    socket.data.roomId =
+      roomId;
 
-        // broadcast updated users
-        io.to(roomId).emit(
-          "users_update",
-          roomUsers[roomId]
-        );
-
-        console.log(
-          `${username} joined room ${roomId}`
-        );
-      }
-    );
+    socket.data.username =
+      username;
+  }
+);
     //SEND TEXT
     socket.on(
       "send_text",
@@ -106,23 +106,62 @@ export const setupSocket = (io: Server) => {
       }
     );
     //DISCONNECT
-    socket.on("disconnect", () => {
-      console.log(
-        "User disconnected:",
-        socket.id
+    socket.on(
+  "disconnect",
+  () => {
+
+    console.log(
+      "User disconnected:",
+      socket.id
+    );
+
+    const roomId =
+      socket.data.roomId;
+
+    const username =
+      socket.data.username;
+
+    if (
+      roomId &&
+      username &&
+      roomUsers.has(roomId)
+    ) {
+      io.to(roomId).emit(
+  "activity-update",
+  {
+    type: "leave",
+    username,
+    time:
+      new Date()
+        .toLocaleTimeString(),
+  }
+);
+
+      roomUsers
+        .get(roomId)!
+        .delete(username);
+
+      io.to(roomId).emit(
+        "users-update",
+        Array.from(
+          roomUsers.get(roomId)!
+        )
       );
+    }
+  }
+);
+socket.on(
+  "activity",
+  (activity) => {
 
-      for (const roomId in roomUsers) {
-        roomUsers[roomId] =
-          roomUsers[roomId].filter(
-            (user) => user.id !== socket.id
-          );
+    io.to(
+      activity.roomId
+    ).emit(
+      "activity-update",
+      activity
+    );
 
-        io.to(roomId).emit(
-          "users_update",
-          roomUsers[roomId]
-        );
-      }
-    });
+  }
+);
   });
 };
